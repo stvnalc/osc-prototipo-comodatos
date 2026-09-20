@@ -4,16 +4,15 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { FotoInput } from "@/components/foto-instrumento"
 import { SelectField } from "@/components/select-field"
-import { rutaUbicacion } from "@/lib/format"
+import { sedeConDireccion } from "@/lib/format"
 import { useStore } from "@/lib/store"
-import type { CondicionFisica, Familia } from "@/lib/types"
-
-const FAMILIAS: Familia[] = ["Cuerdas", "Maderas", "Metales", "Percusión"]
-const CONDICIONES: CondicionFisica[] = ["Excelente", "Buena", "Regular", "Deteriorada"]
+import { CONDICIONES, FAMILIAS, type CondicionFisica, type Familia, type Instrumento } from "@/lib/types"
 
 const vacio = {
-  prefijo: "",
+  abrev: "",
   nombre: "",
   familia: "" as Familia | "",
   marca: "",
@@ -23,41 +22,74 @@ const vacio = {
   material: "",
   anio: String(new Date().getFullYear()),
   condicion: "Buena" as CondicionFisica,
-  ubicacionId: "",
+  sedeId: "",
   accesorios: "",
+  observaciones: "",
+  foto: undefined as string | undefined,
 }
 
-export function NuevoInstrumentoDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+function desde(i: Instrumento): typeof vacio {
+  return {
+    abrev: i.codigo.split("-")[0].replace(/\d+$/, ""),
+    nombre: i.nombre,
+    familia: i.familia,
+    marca: i.marca,
+    modelo: i.modelo,
+    serial: i.serial,
+    medida: i.medida ?? "",
+    material: i.material ?? "",
+    anio: String(i.anioAdquisicion),
+    condicion: i.condicion,
+    sedeId: i.sedeId ?? "",
+    accesorios: i.accesorios.join(", "),
+    observaciones: i.observaciones ?? "",
+    foto: i.foto,
+  }
+}
+
+export function InstrumentoDialog({
+  open,
+  onOpenChange,
+  instrumento,
+}: {
+  open: boolean
+  onOpenChange: (o: boolean) => void
+  /** Si viene, el diálogo edita ese instrumento en lugar de crear uno nuevo. */
+  instrumento?: Instrumento
+}) {
   const store = useStore()
-  const [f, setF] = useState(vacio)
+  const editando = !!instrumento
+  const [f, setF] = useState(() => (instrumento ? desde(instrumento) : vacio))
   const [intentado, setIntentado] = useState(false)
   const set = <K extends keyof typeof vacio>(k: K, v: (typeof vacio)[K]) => setF((s) => ({ ...s, [k]: v }))
 
-  // Código correlativo por prefijo: OSC-<PREFIJO>-<NNN>
+  // Código acordado con la fundación: Pi004-FOSC
   const codigo = useMemo(() => {
-    const p = f.prefijo.trim().toUpperCase()
-    if (!p) return ""
+    const a = f.abrev.trim()
+    if (!a) return ""
+    const abrev = a[0].toUpperCase() + a.slice(1).toLowerCase()
+    if (editando && instrumento && desde(instrumento).abrev.toLowerCase() === a.toLowerCase()) return instrumento.codigo
     const max = store.db.instrumentos
-      .filter((i) => i.codigo.startsWith(`OSC-${p}-`))
-      .reduce((m, i) => Math.max(m, Number(i.codigo.split("-")[2]) || 0), 0)
-    return `OSC-${p}-${String(max + 1).padStart(3, "0")}`
-  }, [f.prefijo, store.db.instrumentos])
+      .filter((i) => i.codigo.toLowerCase().startsWith(abrev.toLowerCase()))
+      .reduce((m, i) => Math.max(m, Number(i.codigo.replace(/^[A-Za-z]+/, "").split("-")[0]) || 0), 0)
+    return `${abrev}${String(max + 1).padStart(3, "0")}-FOSC`
+  }, [f.abrev, store.db.instrumentos, editando, instrumento])
 
   const errores: Record<string, string> = {}
-  if (!/^[A-Za-z]{2,4}$/.test(f.prefijo.trim())) errores.prefijo = "De 2 a 4 letras, ej. VLN."
+  if (!/^[A-Za-z]{2,4}$/.test(f.abrev.trim())) errores.abrev = "De 2 a 4 letras, ej. Pi para piano."
   if (!f.nombre.trim()) errores.nombre = "Requerido."
   if (!f.familia) errores.familia = "Requerido."
   if (!f.marca.trim()) errores.marca = "Requerido."
   if (!f.modelo.trim()) errores.modelo = "Requerido."
   if (!f.serial.trim()) errores.serial = "Requerido."
-  else if (store.db.instrumentos.some((i) => i.serial.toUpperCase() === f.serial.trim().toUpperCase()))
+  else if (store.db.instrumentos.some((i) => i.serial.toUpperCase() === f.serial.trim().toUpperCase() && i.id !== instrumento?.id))
     errores.serial = "Ya existe un instrumento con este serial."
-  if (!f.ubicacionId) errores.ubicacionId = "Selecciona dónde se resguarda."
+  if (!f.sedeId) errores.sedeId = "Selecciona la sede de resguardo."
   const err = (k: string) => (intentado ? errores[k] : undefined)
 
   const cerrar = (o: boolean) => {
     if (!o) {
-      setF(vacio)
+      setF(instrumento ? desde(instrumento) : vacio)
       setIntentado(false)
     }
     onOpenChange(o)
@@ -66,7 +98,7 @@ export function NuevoInstrumentoDialog({ open, onOpenChange }: { open: boolean; 
   const guardar = () => {
     setIntentado(true)
     if (Object.keys(errores).length) return
-    const nuevo = store.crearInstrumento({
+    const datos = {
       codigo,
       nombre: f.nombre.trim(),
       familia: f.familia as Familia,
@@ -77,10 +109,18 @@ export function NuevoInstrumentoDialog({ open, onOpenChange }: { open: boolean; 
       material: f.material.trim() || undefined,
       anioAdquisicion: Number(f.anio) || new Date().getFullYear(),
       condicion: f.condicion,
-      ubicacionId: f.ubicacionId,
+      sedeId: f.sedeId,
       accesorios: f.accesorios.split(",").map((a) => a.trim()).filter(Boolean),
-    })
-    toast.success(`Instrumento ${nuevo.codigo} registrado`)
+      observaciones: f.observaciones.trim() || undefined,
+      foto: f.foto,
+    }
+    if (instrumento) {
+      store.actualizarInstrumento(instrumento.id, datos)
+      toast.success(`${codigo} actualizado`)
+    } else {
+      const nuevo = store.crearInstrumento(datos)
+      toast.success(`Instrumento ${nuevo.codigo} registrado`)
+    }
     cerrar(false)
   }
 
@@ -88,26 +128,34 @@ export function NuevoInstrumentoDialog({ open, onOpenChange }: { open: boolean; 
     <Dialog open={open} onOpenChange={cerrar}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Registrar instrumento</DialogTitle>
-          <DialogDescription>Se registra como “Disponible” en la ubicación de resguardo indicada.</DialogDescription>
+          <DialogTitle>{editando ? `Editar ${instrumento.codigo}` : "Registrar instrumento"}</DialogTitle>
+          <DialogDescription>
+            {editando
+              ? "Corrige la ficha del instrumento. El estado y el comodato se gestionan aparte."
+              : "Se registra como “Disponible” en la sede de resguardo indicada."}
+          </DialogDescription>
         </DialogHeader>
         <FieldGroup className="max-h-[65vh] gap-4 overflow-y-auto px-0.5 py-1">
+          <Field>
+            <FieldLabel>Foto del instrumento</FieldLabel>
+            <FotoInput value={f.foto} onChange={(foto) => set("foto", foto)} />
+          </Field>
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field data-invalid={!!err("prefijo")}>
-              <FieldLabel htmlFor="ni-prefijo">Prefijo del código</FieldLabel>
-              <Input id="ni-prefijo" className="font-mono uppercase" maxLength={4} placeholder="VLN" value={f.prefijo} onChange={(e) => set("prefijo", e.target.value)} />
-              <FieldError>{err("prefijo")}</FieldError>
+            <Field data-invalid={!!err("abrev")}>
+              <FieldLabel htmlFor="ni-abrev">Abreviatura</FieldLabel>
+              <Input id="ni-abrev" className="font-mono" maxLength={4} placeholder="Pi" value={f.abrev} onChange={(e) => set("abrev", e.target.value)} />
+              <FieldError>{err("abrev")}</FieldError>
             </Field>
             <Field className="sm:col-span-2">
-              <FieldLabel>Código asignado</FieldLabel>
+              <FieldLabel>Código de inventario</FieldLabel>
               <div className="bg-muted flex h-8 items-center rounded-lg px-2.5 font-mono text-sm">{codigo || "—"}</div>
-              <FieldDescription>Se genera automáticamente y va en la etiqueta física.</FieldDescription>
+              <FieldDescription>Abreviatura + correlativo + FOSC. Va en la etiqueta física.</FieldDescription>
             </Field>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field data-invalid={!!err("nombre")}>
               <FieldLabel htmlFor="ni-nombre">Instrumento</FieldLabel>
-              <Input id="ni-nombre" placeholder="Violín" value={f.nombre} onChange={(e) => set("nombre", e.target.value)} />
+              <Input id="ni-nombre" placeholder="Piano vertical" value={f.nombre} onChange={(e) => set("nombre", e.target.value)} />
               <FieldError>{err("nombre")}</FieldError>
             </Field>
             <Field data-invalid={!!err("familia")}>
@@ -136,7 +184,7 @@ export function NuevoInstrumentoDialog({ open, onOpenChange }: { open: boolean; 
             </Field>
             <Field>
               <FieldLabel htmlFor="ni-medida">Medida (opcional)</FieldLabel>
-              <Input id="ni-medida" placeholder="4/4, 3/4…" value={f.medida} onChange={(e) => set("medida", e.target.value)} />
+              <Input id="ni-medida" placeholder="4/4, 88 teclas…" value={f.medida} onChange={(e) => set("medida", e.target.value)} />
             </Field>
             <Field>
               <FieldLabel htmlFor="ni-material">Material (opcional)</FieldLabel>
@@ -146,10 +194,10 @@ export function NuevoInstrumentoDialog({ open, onOpenChange }: { open: boolean; 
               <FieldLabel htmlFor="ni-condicion">Condición</FieldLabel>
               <SelectField id="ni-condicion" value={f.condicion} onChange={(v) => set("condicion", v as CondicionFisica)} options={CONDICIONES.map((x) => ({ value: x, label: x }))} />
             </Field>
-            <Field data-invalid={!!err("ubicacionId")}>
-              <FieldLabel htmlFor="ni-ubicacion">Ubicación de resguardo</FieldLabel>
-              <SelectField id="ni-ubicacion" value={f.ubicacionId} onChange={(v) => set("ubicacionId", v)} invalid={!!err("ubicacionId")} options={store.db.ubicaciones.map((u) => ({ value: u.id, label: rutaUbicacion(u) }))} />
-              <FieldError>{err("ubicacionId")}</FieldError>
+            <Field data-invalid={!!err("sedeId")}>
+              <FieldLabel htmlFor="ni-sede">Sede de resguardo</FieldLabel>
+              <SelectField id="ni-sede" value={f.sedeId} onChange={(v) => set("sedeId", v)} invalid={!!err("sedeId")} options={store.db.sedes.map((s) => ({ value: s.id, label: sedeConDireccion(s) }))} />
+              <FieldError>{err("sedeId")}</FieldError>
             </Field>
           </div>
           <Field>
@@ -157,12 +205,16 @@ export function NuevoInstrumentoDialog({ open, onOpenChange }: { open: boolean; 
             <Input id="ni-accesorios" placeholder="Estuche, Arco, Resina" value={f.accesorios} onChange={(e) => set("accesorios", e.target.value)} />
             <FieldDescription>Separados por coma. Se listan en el contrato.</FieldDescription>
           </Field>
+          <Field>
+            <FieldLabel htmlFor="ni-obs">Observaciones (opcional)</FieldLabel>
+            <Textarea id="ni-obs" rows={2} value={f.observaciones} onChange={(e) => set("observaciones", e.target.value)} />
+          </Field>
         </FieldGroup>
         <DialogFooter>
           <Button variant="outline" onClick={() => cerrar(false)}>
             Cancelar
           </Button>
-          <Button onClick={guardar}>Registrar instrumento</Button>
+          <Button onClick={guardar}>{editando ? "Guardar cambios" : "Registrar instrumento"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

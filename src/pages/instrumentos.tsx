@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { Handshake, MapPin, Plus, Search } from "lucide-react"
-import { NuevoInstrumentoDialog } from "@/components/dialogs/nuevo-instrumento-dialog"
+import { useDialogs } from "@/components/dialogs/dialogs-provider"
 import { EstadoBadge } from "@/components/estado-badge"
+import { FotoMiniatura } from "@/components/foto-instrumento"
 import { InstrumentoAcciones } from "@/components/instrumento-acciones"
 import { PageHeader } from "@/components/page-header"
 import { Paginacion, usePaginado } from "@/components/paginacion"
@@ -12,23 +13,22 @@ import { Card, CardContent } from "@/components/ui/card"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { nombreCompleto, rutaUbicacion } from "@/lib/format"
+import { formatDate, nombreCompleto, nombreSede, sedeConDireccion } from "@/lib/format"
 import { useStore } from "@/lib/store"
-import type { EstadoInstrumento, Familia } from "@/lib/types"
+import { FAMILIAS, type EstadoInstrumento } from "@/lib/types"
 
 type Filtro = "todos" | EstadoInstrumento
-const FAMILIAS: Familia[] = ["Cuerdas", "Maderas", "Metales", "Percusión"]
 
 export function InstrumentosPage() {
   const store = useStore()
+  const dialogs = useDialogs()
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const [nuevoOpen, setNuevoOpen] = useState(false)
 
   const estado = (params.get("estado") as Filtro) || "todos"
   const q = params.get("q") ?? ""
   const familia = params.get("familia") ?? ""
-  const ubicacionId = params.get("ubicacion") ?? ""
+  const sedeId = params.get("sede") ?? ""
   const pagina = Number(params.get("page")) || 1
 
   const setParam = (k: string, v: string) =>
@@ -48,24 +48,27 @@ export function InstrumentosPage() {
     return store.db.instrumentos.filter((i) => {
       if (estado !== "todos" && i.estado !== estado) return false
       if (familia && i.familia !== familia) return false
-      if (ubicacionId && i.ubicacionId !== ubicacionId) return false
+      if (sedeId && store.sedeActual(i)?.id !== sedeId) return false
       if (!t) return true
       const c = store.comodatoDeInstrumento(i.id)
-      const e = c && store.estudiante(c.estudianteId)
-      return [i.codigo, i.nombre, i.marca, i.modelo, i.serial, e ? nombreCompleto(e) : ""].some((x) => x.toLowerCase().includes(t))
+      const e = c && store.integrante(c.integranteId)
+      return [i.codigo, i.nombre, i.marca, i.modelo, i.serial, e ? nombreCompleto(e) : ""].some((x) =>
+        x.toLowerCase().includes(t)
+      )
     })
-  }, [store, q, estado, familia, ubicacionId])
+  }, [store, q, estado, familia, sedeId])
 
   const { visibles, totalPaginas, actual } = usePaginado(filtrados, pagina)
-  const cuenta = (e: Filtro) => (e === "todos" ? store.db.instrumentos.length : store.db.instrumentos.filter((i) => i.estado === e).length)
+  const cuenta = (e: Filtro) =>
+    e === "todos" ? store.db.instrumentos.length : store.db.instrumentos.filter((i) => i.estado === e).length
 
   return (
     <>
       <PageHeader
         title="Instrumentos"
-        description="Inventario completo con control de disponibilidad y ubicación."
+        description="Inventario completo con control de disponibilidad, familia y sede."
         actions={
-          <Button onClick={() => setNuevoOpen(true)}>
+          <Button onClick={dialogs.nuevoInstrumento}>
             <Plus data-icon="inline-start" />
             Registrar instrumento
           </Button>
@@ -98,24 +101,24 @@ export function InstrumentosPage() {
                 <Search />
               </InputGroupAddon>
               <InputGroupInput
-                placeholder="Código, nombre, marca, serial o estudiante"
+                placeholder="Código, nombre, marca, serial o integrante"
                 value={q}
                 onChange={(e) => setParam("q", e.target.value)}
               />
             </InputGroup>
             <SelectField
-              className="md:w-44"
+              className="md:w-52"
               value={familia || "todas"}
               onChange={(v) => setParam("familia", v === "todas" ? "" : v)}
               options={[{ value: "todas", label: "Todas las familias" }, ...FAMILIAS.map((f) => ({ value: f, label: f }))]}
             />
             <SelectField
-              className="md:w-72"
-              value={ubicacionId || "todas"}
-              onChange={(v) => setParam("ubicacion", v === "todas" ? "" : v)}
+              className="md:w-64"
+              value={sedeId || "todas"}
+              onChange={(v) => setParam("sede", v === "todas" ? "" : v)}
               options={[
-                { value: "todas", label: "Todas las ubicaciones" },
-                ...store.db.ubicaciones.map((u) => ({ value: u.id, label: rutaUbicacion(u) })),
+                { value: "todas", label: "Todas las sedes" },
+                ...store.db.sedes.map((s) => ({ value: s.id, label: sedeConDireccion(s) })),
               ]}
             />
           </div>
@@ -124,27 +127,31 @@ export function InstrumentosPage() {
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
+                  <TableHead className="w-14" />
                   <TableHead>Código</TableHead>
                   <TableHead>Instrumento</TableHead>
                   <TableHead className="hidden lg:table-cell">Familia</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead className="hidden md:table-cell">Ubicación actual</TableHead>
+                  <TableHead className="hidden md:table-cell">Sede / Asignado a</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {visibles.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-muted-foreground h-24 text-center">
+                    <TableCell colSpan={7} className="text-muted-foreground h-24 text-center">
                       No hay instrumentos que coincidan con los filtros.
                     </TableCell>
                   </TableRow>
                 )}
                 {visibles.map((i) => {
                   const c = store.comodatoDeInstrumento(i.id)
-                  const e = c && store.estudiante(c.estudianteId)
+                  const e = c && store.integrante(c.integranteId)
                   return (
                     <TableRow key={i.id} className="cursor-pointer" onClick={() => navigate(`/consulta?codigo=${i.codigo}`)}>
+                      <TableCell>
+                        <FotoMiniatura foto={i.foto} />
+                      </TableCell>
                       <TableCell className="font-mono text-xs">{i.codigo}</TableCell>
                       <TableCell>
                         <div className="font-medium">{i.nombre}</div>
@@ -158,15 +165,20 @@ export function InstrumentosPage() {
                         <EstadoBadge estado={i.estado} />
                       </TableCell>
                       <TableCell className="hidden max-w-72 md:table-cell">
-                        {e ? (
-                          <span className="flex items-center gap-1.5 text-sky-700 dark:text-sky-300">
-                            <Handshake className="size-3.5 shrink-0" />
-                            <span className="truncate">{nombreCompleto(e)}</span>
-                          </span>
+                        {e && c ? (
+                          <>
+                            <span className="flex items-center gap-1.5 text-sky-700 dark:text-sky-300">
+                              <Handshake className="size-3.5 shrink-0" />
+                              <span className="truncate">{nombreCompleto(e)}</span>
+                            </span>
+                            <span className="text-muted-foreground text-xs">
+                              {nombreSede(store.sede(c.sedeId))} · desde {formatDate(c.fechaInicio)}
+                            </span>
+                          </>
                         ) : (
                           <span className="text-muted-foreground flex items-center gap-1.5">
                             <MapPin className="size-3.5 shrink-0" />
-                            <span className="truncate">{rutaUbicacion(store.ubicacion(i.ubicacionId))}</span>
+                            <span className="truncate">{nombreSede(store.sede(i.sedeId))}</span>
                           </span>
                         )}
                       </TableCell>
@@ -182,8 +194,6 @@ export function InstrumentosPage() {
           <Paginacion actual={actual} totalPaginas={totalPaginas} total={filtrados.length} onChange={(p) => setParam("page", String(p))} />
         </CardContent>
       </Card>
-
-      <NuevoInstrumentoDialog open={nuevoOpen} onOpenChange={setNuevoOpen} />
     </>
   )
 }

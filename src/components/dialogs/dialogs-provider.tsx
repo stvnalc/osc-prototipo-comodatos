@@ -1,46 +1,78 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react"
-import { NuevoComodatoDialog } from "./nuevo-comodato-dialog"
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react"
+import { ComodatoDialog } from "./comodato-dialog"
 import { FinalizarComodatoDialog } from "./finalizar-comodato-dialog"
+import { InstrumentoDialog } from "./instrumento-dialog"
+import { IntegranteDialog } from "./integrante-dialog"
 import { ReparacionDialog } from "./reparacion-dialog"
+import { useStore } from "@/lib/store"
 
 // Diálogos globales: se pueden abrir desde cualquier pantalla (panel,
 // consulta, tablas) sin duplicar el formulario en cada una.
 
 interface Dialogs {
-  nuevoComodato: (preset?: { instrumentoId?: string; estudianteId?: string }) => void
+  nuevoComodato: (preset?: { instrumentoId?: string; integranteId?: string }) => void
+  editarComodato: (comodatoId: string) => void
   finalizarComodato: (comodatoId: string) => void
   enviarAReparacion: (instrumentoId: string) => void
+  nuevoInstrumento: () => void
+  editarInstrumento: (instrumentoId: string) => void
+  nuevoIntegrante: () => void
+  editarIntegrante: (integranteId: string) => void
 }
 
 const DialogsContext = createContext<Dialogs | null>(null)
 
+/** Estado de un diálogo con formulario: `key` fuerza a reiniciarlo al reabrirlo. */
+type FormState = { open: boolean; id?: string; instrumentoId?: string; integranteId?: string; key: number }
+const cerrado: FormState = { open: false, key: 0 }
+
 export function DialogsProvider({ children }: { children: ReactNode }) {
-  const [nuevo, setNuevo] = useState<{ open: boolean; instrumentoId?: string; estudianteId?: string; key: number }>({
-    open: false,
-    key: 0,
-  })
+  const store = useStore()
+  const [comodato, setComodato] = useState<FormState>(cerrado)
+  const [instrumento, setInstrumento] = useState<FormState>(cerrado)
+  const [integrante, setIntegrante] = useState<FormState>(cerrado)
   const [finalizar, setFinalizar] = useState<string | null>(null)
   const [reparacion, setReparacion] = useState<string | null>(null)
 
-  const nuevoComodato = useCallback(
-    (preset?: { instrumentoId?: string; estudianteId?: string }) =>
-      setNuevo((s) => ({ open: true, key: s.key + 1, ...preset })),
-    []
-  )
+  const abrir = (set: (f: (s: FormState) => FormState) => void, datos: Omit<FormState, "open" | "key"> = {}) =>
+    set((s) => ({ open: true, key: s.key + 1, ...datos }))
+
   const value = useMemo<Dialogs>(
-    () => ({ nuevoComodato, finalizarComodato: setFinalizar, enviarAReparacion: setReparacion }),
-    [nuevoComodato]
+    () => ({
+      nuevoComodato: (preset) => abrir(setComodato, preset ?? {}),
+      editarComodato: (id) => abrir(setComodato, { id }),
+      finalizarComodato: setFinalizar,
+      enviarAReparacion: setReparacion,
+      nuevoInstrumento: () => abrir(setInstrumento),
+      editarInstrumento: (id) => abrir(setInstrumento, { id }),
+      nuevoIntegrante: () => abrir(setIntegrante),
+      editarIntegrante: (id) => abrir(setIntegrante, { id }),
+    }),
+    []
   )
 
   return (
     <DialogsContext.Provider value={value}>
       {children}
-      <NuevoComodatoDialog
-        key={nuevo.key}
-        open={nuevo.open}
-        onOpenChange={(open) => setNuevo((s) => ({ ...s, open }))}
-        presetInstrumentoId={nuevo.instrumentoId}
-        presetEstudianteId={nuevo.estudianteId}
+      <ComodatoDialog
+        key={`c${comodato.key}`}
+        open={comodato.open}
+        onOpenChange={(open) => setComodato((s) => ({ ...s, open }))}
+        presetInstrumentoId={comodato.instrumentoId}
+        presetIntegranteId={comodato.integranteId}
+        comodato={comodato.id ? store.db.comodatos.find((c) => c.id === comodato.id) : undefined}
+      />
+      <InstrumentoDialog
+        key={`i${instrumento.key}`}
+        open={instrumento.open}
+        onOpenChange={(open) => setInstrumento((s) => ({ ...s, open }))}
+        instrumento={instrumento.id ? store.instrumento(instrumento.id) : undefined}
+      />
+      <IntegranteDialog
+        key={`e${integrante.key}`}
+        open={integrante.open}
+        onOpenChange={(open) => setIntegrante((s) => ({ ...s, open }))}
+        integrante={integrante.id ? store.integrante(integrante.id) : undefined}
       />
       <FinalizarComodatoDialog comodatoId={finalizar} onClose={() => setFinalizar(null)} />
       <ReparacionDialog instrumentoId={reparacion} onClose={() => setReparacion(null)} />

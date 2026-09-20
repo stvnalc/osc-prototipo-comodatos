@@ -1,12 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
 import { todayIso } from "./format"
 import { buildSeed } from "./seed"
-import type { Comodato, Db, EstadoInstrumento, Estudiante, Instrumento, Ubicacion } from "./types"
+import type { Comodato, Db, EstadoInstrumento, Instrumento, Integrante, Sede } from "./types"
 
 // Store en memoria + localStorage que simula la API REST. Cada acción equivale
 // a un endpoint del backend (ver CLAUDE.md → "Endpoints sugeridos").
 
-const STORAGE_KEY = "osc-comodatos-demo-v1"
+const STORAGE_KEY = "osc-comodatos-demo-v2"
 
 function load(): Db {
   try {
@@ -24,56 +24,74 @@ function uid(prefix: string) {
 
 export type NuevoComodato = Omit<Comodato, "id" | "numero" | "creadoEn">
 export type NuevoInstrumento = Omit<Instrumento, "id" | "estado">
-export type NuevoEstudiante = Omit<Estudiante, "id">
+export type NuevoIntegrante = Omit<Integrante, "id">
 
 interface Store {
   db: Db
   instrumento: (id: string) => Instrumento | undefined
-  estudiante: (id: string) => Estudiante | undefined
-  ubicacion: (id: string | null) => Ubicacion | undefined
+  integrante: (id: string) => Integrante | undefined
+  sede: (id: string | null) => Sede | undefined
   comodatoDeInstrumento: (instrumentoId: string) => Comodato | undefined
-  comodatosDeEstudiante: (estudianteId: string) => Comodato[]
+  comodatosDeIntegrante: (integranteId: string) => Comodato[]
   buscarPorCodigo: (codigo: string) => Instrumento | undefined
+  /** Sede donde está físicamente: la del comodato si está prestado, si no la de resguardo. */
+  sedeActual: (instrumento: Instrumento) => Sede | undefined
   crearComodato: (data: NuevoComodato) => Comodato
-  finalizarComodato: (comodatoId: string, ubicacionId: string | null) => void
+  actualizarComodato: (id: string, data: Partial<NuevoComodato>) => void
+  finalizarComodato: (comodatoId: string, sedeId: string | null) => void
   cambiarEstado: (instrumentoId: string, estado: Exclude<EstadoInstrumento, "comodato">, observaciones?: string) => void
   crearInstrumento: (data: NuevoInstrumento) => Instrumento
-  crearEstudiante: (data: NuevoEstudiante) => Estudiante
+  actualizarInstrumento: (id: string, data: Partial<NuevoInstrumento>) => void
+  crearIntegrante: (data: NuevoIntegrante) => Integrante
+  actualizarIntegrante: (id: string, data: Partial<NuevoIntegrante>) => void
   reset: () => void
+  /** true si el navegador rechazó guardar (cuota llena, normalmente por las fotos). */
+  sinEspacio: boolean
 }
 
 const StoreContext = createContext<Store | null>(null)
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [db, setDb] = useState<Db>(load)
+  const [sinEspacio, setSinEspacio] = useState(false)
 
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(db))
+      setSinEspacio(false)
     } catch {
-      // sin persistencia; la demo sigue funcionando en memoria
+      // Cuota llena (las fotos pesan): la demo sigue en memoria hasta recargar.
+      setSinEspacio(true)
     }
   }, [db])
 
   const instrumento = useCallback((id: string) => db.instrumentos.find((i) => i.id === id), [db])
-  const estudiante = useCallback((id: string) => db.estudiantes.find((e) => e.id === id), [db])
-  const ubicacion = useCallback((id: string | null) => db.ubicaciones.find((u) => u.id === id), [db])
+  const integrante = useCallback((id: string) => db.integrantes.find((e) => e.id === id), [db])
+  const sede = useCallback((id: string | null) => db.sedes.find((s) => s.id === id), [db])
   const comodatoDeInstrumento = useCallback(
     (instrumentoId: string) => db.comodatos.find((c) => c.instrumentoId === instrumentoId),
     [db]
   )
-  const comodatosDeEstudiante = useCallback(
-    (estudianteId: string) => db.comodatos.filter((c) => c.estudianteId === estudianteId),
+  const comodatosDeIntegrante = useCallback(
+    (integranteId: string) => db.comodatos.filter((c) => c.integranteId === integranteId),
     [db]
   )
   const buscarPorCodigo = useCallback(
     (codigo: string) => {
-      const q = codigo.trim().toUpperCase()
+      const norm = (s: string) => s.trim().toUpperCase().replace(/-FOSC$/, "").replace(/[\s-]/g, "")
+      const q = norm(codigo)
       if (!q) return undefined
       return (
-        db.instrumentos.find((i) => i.codigo === q) ??
-        db.instrumentos.find((i) => i.codigo.endsWith(q) || i.codigo.replace(/-/g, "").endsWith(q.replace(/-/g, "")))
+        db.instrumentos.find((i) => norm(i.codigo) === q) ??
+        db.instrumentos.find((i) => norm(i.codigo).includes(q))
       )
+    },
+    [db]
+  )
+  const sedeActual = useCallback(
+    (i: Instrumento) => {
+      const c = db.comodatos.find((x) => x.instrumentoId === i.id)
+      return db.sedes.find((s) => s.id === (c ? c.sedeId : i.sedeId))
     },
     [db]
   )
@@ -102,9 +120,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [db]
   )
 
+  const actualizarComodato = useCallback((id: string, data: Partial<NuevoComodato>) => {
+    setDb((prev) => ({ ...prev, comodatos: prev.comodatos.map((c) => (c.id === id ? { ...c, ...data } : c)) }))
+  }, [])
+
   // Regla de negocio de la propuesta: al finalizar, el instrumento vuelve a
   // "Disponible" y el registro del comodato se ELIMINA (no queda historial).
-  const finalizarComodato = useCallback((comodatoId: string, ubicacionId: string | null) => {
+  const finalizarComodato = useCallback((comodatoId: string, sedeId: string | null) => {
     setDb((prev) => {
       const c = prev.comodatos.find((x) => x.id === comodatoId)
       if (!c) return prev
@@ -112,7 +134,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ...prev,
         comodatos: prev.comodatos.filter((x) => x.id !== comodatoId),
         instrumentos: prev.instrumentos.map((i) =>
-          i.id === c.instrumentoId ? { ...i, estado: "disponible", ubicacionId: ubicacionId ?? i.ubicacionId } : i
+          i.id === c.instrumentoId ? { ...i, estado: "disponible", sedeId: sedeId ?? i.sedeId } : i
         ),
       }
     })
@@ -123,7 +145,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setDb((prev) => ({
         ...prev,
         instrumentos: prev.instrumentos.map((i) =>
-          i.id === instrumentoId ? { ...i, estado, observaciones: observaciones ?? (estado === "disponible" ? undefined : i.observaciones) } : i
+          i.id === instrumentoId
+            ? { ...i, estado, observaciones: observaciones ?? (estado === "disponible" ? undefined : i.observaciones) }
+            : i
         ),
       }))
     },
@@ -136,10 +160,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return nuevo
   }, [])
 
-  const crearEstudiante = useCallback((data: NuevoEstudiante) => {
-    const nuevo: Estudiante = { ...data, id: uid("e") }
-    setDb((prev) => ({ ...prev, estudiantes: [...prev.estudiantes, nuevo] }))
+  const actualizarInstrumento = useCallback((id: string, data: Partial<NuevoInstrumento>) => {
+    setDb((prev) => ({ ...prev, instrumentos: prev.instrumentos.map((i) => (i.id === id ? { ...i, ...data } : i)) }))
+  }, [])
+
+  const crearIntegrante = useCallback((data: NuevoIntegrante) => {
+    const nuevo: Integrante = { ...data, id: uid("e") }
+    setDb((prev) => ({ ...prev, integrantes: [...prev.integrantes, nuevo] }))
     return nuevo
+  }, [])
+
+  const actualizarIntegrante = useCallback((id: string, data: Partial<NuevoIntegrante>) => {
+    setDb((prev) => ({ ...prev, integrantes: prev.integrantes.map((e) => (e.id === id ? { ...e, ...data } : e)) }))
   }, [])
 
   const reset = useCallback(() => setDb(buildSeed()), [])
@@ -148,19 +180,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     () => ({
       db,
       instrumento,
-      estudiante,
-      ubicacion,
+      integrante,
+      sede,
       comodatoDeInstrumento,
-      comodatosDeEstudiante,
+      comodatosDeIntegrante,
       buscarPorCodigo,
+      sedeActual,
       crearComodato,
+      actualizarComodato,
       finalizarComodato,
       cambiarEstado,
       crearInstrumento,
-      crearEstudiante,
+      actualizarInstrumento,
+      crearIntegrante,
+      actualizarIntegrante,
       reset,
+      sinEspacio,
     }),
-    [db, instrumento, estudiante, ubicacion, comodatoDeInstrumento, comodatosDeEstudiante, buscarPorCodigo, crearComodato, finalizarComodato, cambiarEstado, crearInstrumento, crearEstudiante, reset]
+    [db, instrumento, integrante, sede, comodatoDeInstrumento, comodatosDeIntegrante, buscarPorCodigo, sedeActual, crearComodato, actualizarComodato, finalizarComodato, cambiarEstado, crearInstrumento, actualizarInstrumento, crearIntegrante, actualizarIntegrante, reset, sinEspacio]
   )
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>

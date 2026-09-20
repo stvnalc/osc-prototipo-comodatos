@@ -6,10 +6,10 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { StoreProvider } from "@/lib/store"
 import { ComodatosPage } from "@/pages/comodatos"
 import { ConsultaPage } from "@/pages/consulta"
-import { EstudiantesPage } from "@/pages/estudiantes"
+import { IntegrantesPage } from "@/pages/integrantes"
 import { InstrumentosPage } from "@/pages/instrumentos"
 import { PanelPage } from "@/pages/panel"
-import { UbicacionesPage } from "@/pages/ubicaciones"
+import { SedesPage } from "@/pages/sedes"
 
 export default function App() {
   return (
@@ -23,8 +23,8 @@ export default function App() {
                 <Route path="consulta" element={<ConsultaPage />} />
                 <Route path="instrumentos" element={<InstrumentosPage />} />
                 <Route path="comodatos" element={<ComodatosPage />} />
-                <Route path="estudiantes" element={<EstudiantesPage />} />
-                <Route path="ubicaciones" element={<UbicacionesPage />} />
+                <Route path="integrantes" element={<IntegrantesPage />} />
+                <Route path="sedes" element={<SedesPage />} />
                 <Route path="*" element={<PanelPage />} />
               </Route>
             </Routes>

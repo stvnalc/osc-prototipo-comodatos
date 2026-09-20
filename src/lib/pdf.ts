@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf"
-import { edad, formatDateLong, nombreCompleto, rutaUbicacion } from "./format"
-import type { Comodato, Estudiante, Instrumento, Ubicacion } from "./types"
+import { edad, formatDateLong, nombreCompleto, sedeConDireccion } from "./format"
+import type { Comodato, Instrumento, Integrante, Sede } from "./types"
 
 // Genera el contrato de comodato en el navegador. En el sistema real esto
 // vive en el backend (p. ej. barryvdh/laravel-dompdf + vista Blade) para que
@@ -27,10 +27,13 @@ async function logoPng(): Promise<string | null> {
 export async function descargarContrato(opts: {
   comodato: Comodato
   instrumento: Instrumento
-  estudiante: Estudiante
-  ubicacion?: Ubicacion
+  integrante: Integrante
+  /** Sede donde queda el instrumento durante el comodato. */
+  sede?: Sede
+  /** Sede a la que pertenece el integrante. */
+  sedeIntegrante?: Sede
 }) {
-  const { comodato: c, instrumento: i, estudiante: e, ubicacion } = opts
+  const { comodato: c, instrumento: i, integrante: e, sede, sedeIntegrante } = opts
   const doc = new jsPDF({ unit: "mm", format: "a4" })
   const W = 210
   const M = 20
@@ -90,11 +93,11 @@ export async function descargarContrato(opts: {
   const menor = edad(e.fechaNacimiento) < 18
   const rep = e.representante
   const comodatario = menor && rep
-    ? `${rep.nombre.toUpperCase()}, venezolano(a), mayor de edad, titular de la cédula de identidad N° ${rep.cedula}, actuando en su carácter de ${rep.parentesco.toLowerCase()} y representante legal del (de la) estudiante ${nombreCompleto(e).toUpperCase()}, titular de la cédula de identidad N° ${e.cedula}`
-    : `${nombreCompleto(e).toUpperCase()}, venezolano(a), titular de la cédula de identidad N° ${e.cedula}, domiciliado(a) en ${e.direccion}`
+    ? `${rep.nombre.toUpperCase()}, venezolano(a), mayor de edad, titular de la cédula de identidad N° ${rep.cedula} y del RIF N° ${rep.rif}, actuando en su carácter de ${rep.parentesco.toLowerCase()} y representante legal del (de la) integrante ${nombreCompleto(e).toUpperCase()}, titular de la cédula de identidad N° ${e.cedula}, con domicilio fiscal en ${e.direccionFiscal}`
+    : `${nombreCompleto(e).toUpperCase()}, venezolano(a), titular de la cédula de identidad N° ${e.cedula}, con domicilio fiscal en ${e.direccionFiscal}`
 
   parrafo(
-    `Entre la ${FUNDACION}, inscrita bajo el RIF ${RIF}, quien en lo sucesivo se denominará "EL COMODANTE", por una parte; y por la otra, ${comodatario}, estudiante de la cátedra de ${e.catedra} adscrito(a) al ${e.nucleo}, quien en lo sucesivo se denominará "EL COMODATARIO", se ha convenido celebrar el presente contrato de comodato, de conformidad con lo previsto en el Código Civil venezolano, el cual se regirá por las siguientes cláusulas:`,
+    `Entre la ${FUNDACION}, inscrita bajo el RIF ${RIF}, quien en lo sucesivo se denominará "EL COMODANTE", por una parte; y por la otra, ${comodatario}, integrante de la cátedra de ${e.catedra} adscrito(a) a la sede ${sedeIntegrante?.nombre ?? "—"}, quien en lo sucesivo se denominará "EL COMODATARIO", se ha convenido celebrar el presente contrato de comodato, de conformidad con lo previsto en el Código Civil venezolano, el cual se regirá por las siguientes cláusulas:`,
     10,
     "normal",
     5
@@ -109,11 +112,12 @@ export async function descargarContrato(opts: {
   const filas: [string, string][] = [
     ["Código de inventario", i.codigo],
     ["Instrumento", `${i.nombre}${i.medida ? ` (${i.medida})` : ""}`],
+    ["Familia", i.familia],
     ["Marca / Modelo", `${i.marca} ${i.modelo}`],
     ["Serial", i.serial],
     ["Condición al entregar", c.condicionEntrega],
     ["Accesorios", i.accesorios.join(", ") || "Ninguno"],
-    ["Ubicación de resguardo", rutaUbicacion(ubicacion)],
+    ["Sede durante el comodato", sedeConDireccion(sede)],
   ]
   saltoSiHaceFalta(filas.length * 7 + 4)
   doc.setFontSize(9.5)
@@ -130,13 +134,30 @@ export async function descargarContrato(opts: {
   })
   y += 4
 
+  if (i.foto) {
+    saltoSiHaceFalta(38)
+    try {
+      doc.addImage(i.foto, "JPEG", M, y, 45, 34)
+      doc.setDrawColor(210)
+      doc.setLineWidth(0.2)
+      doc.rect(M, y, 45, 34)
+      doc.setFontSize(8)
+      doc.setTextColor(120)
+      doc.text("Foto del instrumento al momento de la entrega", M + 49, y + 6)
+      doc.setTextColor(0)
+      y += 38
+    } catch {
+      // si la imagen no se puede incrustar, el contrato sigue sin ella
+    }
+  }
+
   clausula(
     "SEGUNDA. DURACIÓN.",
-    `El presente comodato tendrá vigencia desde el ${formatDateLong(c.fechaInicio)} hasta el ${formatDateLong(c.fechaFin)}, fecha en la cual EL COMODATARIO deberá restituir el instrumento, salvo que las partes acuerden por escrito su renovación.`
+    `El instrumento fue asignado el ${formatDateLong(c.fechaInicio)} y el presente comodato tendrá vigencia desde esa fecha hasta el ${formatDateLong(c.fechaFin)}, fecha en la cual EL COMODATARIO deberá restituir el instrumento, salvo que las partes acuerden por escrito su renovación.`
   )
   clausula(
     "TERCERA. USO Y CONSERVACIÓN.",
-    "EL COMODATARIO se obliga a usar el instrumento con el debido cuidado, conservarlo en su estuche o funda, protegerlo de la humedad, el calor y los golpes, y presentarlo para revisión cuando EL COMODANTE lo solicite."
+    `EL COMODATARIO se obliga a usar el instrumento con el debido cuidado, conservarlo en su estuche o funda, protegerlo de la humedad, el calor y los golpes, mantenerlo resguardado en la sede ${sede?.nombre ?? "asignada"} y presentarlo para revisión cuando EL COMODANTE lo solicite.`
   )
   clausula(
     "CUARTA. PROHIBICIONES.",
@@ -148,7 +169,7 @@ export async function descargarContrato(opts: {
   )
   clausula(
     "SEXTA. DEVOLUCIÓN Y TERMINACIÓN ANTICIPADA.",
-    "EL COMODANTE podrá solicitar la devolución anticipada del instrumento en caso de incumplimiento de cualquiera de las cláusulas, retiro del estudiante del programa o necesidad justificada de la institución. El instrumento se devolverá con todos sus accesorios, en el estado en que fue recibido, salvo el desgaste natural."
+    "EL COMODANTE podrá solicitar la devolución anticipada del instrumento en caso de incumplimiento de cualquiera de las cláusulas, retiro del integrante del programa o necesidad justificada de la institución. El instrumento se devolverá con todos sus accesorios, en el estado en que fue recibido, salvo el desgaste natural."
   )
   if (c.observaciones) clausula("SÉPTIMA. OBSERVACIONES.", c.observaciones)
 
@@ -161,7 +182,7 @@ export async function descargarContrato(opts: {
 
   // Firmas
   const firmas = menor && rep
-    ? ["Por EL COMODANTE", "Representante legal", "Estudiante"]
+    ? ["Por EL COMODANTE", "Representante legal", "Integrante"]
     : ["Por EL COMODANTE", "EL COMODATARIO"]
   saltoSiHaceFalta(34)
   y += 20

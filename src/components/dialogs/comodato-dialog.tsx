@@ -1,82 +1,109 @@
 import { useMemo, useState } from "react"
-import { FileDown, TriangleAlert } from "lucide-react"
+import { Handshake, TriangleAlert } from "lucide-react"
 import { toast } from "sonner"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { SelectField } from "@/components/select-field"
-import { addDays, edad, nombreCompleto, rutaUbicacion, todayIso } from "@/lib/format"
+import { addDays, edad, nombreCompleto, nombreSede, sedeConDireccion, todayIso } from "@/lib/format"
 import { descargarContrato } from "@/lib/pdf"
 import { useStore } from "@/lib/store"
-import type { CondicionFisica } from "@/lib/types"
+import { CONDICIONES, type CondicionFisica, type Comodato } from "@/lib/types"
 
-const CONDICIONES: CondicionFisica[] = ["Excelente", "Buena", "Regular", "Deteriorada"]
 const DURACIONES = [
   { label: "3 meses", dias: 90 },
   { label: "6 meses", dias: 182 },
   { label: "1 año", dias: 365 },
 ]
 
-export function NuevoComodatoDialog({
+export function ComodatoDialog({
   open,
   onOpenChange,
   presetInstrumentoId,
-  presetEstudianteId,
+  presetIntegranteId,
+  comodato,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   presetInstrumentoId?: string
-  presetEstudianteId?: string
+  presetIntegranteId?: string
+  /** Si viene, el diálogo edita ese comodato en lugar de crear uno nuevo. */
+  comodato?: Comodato
 }) {
   const store = useStore()
   const { db } = store
   const hoy = todayIso()
+  const editando = !!comodato
 
-  const [instrumentoId, setInstrumentoId] = useState(presetInstrumentoId ?? "")
-  const [estudianteId, setEstudianteId] = useState(presetEstudianteId ?? "")
-  const [fechaInicio, setFechaInicio] = useState(hoy)
-  const [fechaFin, setFechaFin] = useState(addDays(hoy, 182))
-  const [condicion, setCondicion] = useState<string>("")
-  const [observaciones, setObservaciones] = useState("")
+  const [instrumentoId, setInstrumentoId] = useState(comodato?.instrumentoId ?? presetInstrumentoId ?? "")
+  const [integranteId, setIntegranteId] = useState(comodato?.integranteId ?? presetIntegranteId ?? "")
+  const [sedeId, setSedeId] = useState(comodato?.sedeId ?? "")
+  const [fechaInicio, setFechaInicio] = useState(comodato?.fechaInicio ?? hoy)
+  const [fechaFin, setFechaFin] = useState(comodato?.fechaFin ?? addDays(hoy, 182))
+  const [condicion, setCondicion] = useState<string>(comodato?.condicionEntrega ?? "")
+  const [observaciones, setObservaciones] = useState(comodato?.observaciones ?? "")
   const [intentado, setIntentado] = useState(false)
 
-  const disponibles = db.instrumentos.filter((i) => i.estado === "disponible" || i.id === presetInstrumentoId)
+  const disponibles = db.instrumentos.filter(
+    (i) => i.estado === "disponible" || i.id === presetInstrumentoId || i.id === comodato?.instrumentoId
+  )
   const instrumento = store.instrumento(instrumentoId)
-  const estudiante = store.estudiante(estudianteId)
+  const integrante = store.integrante(integranteId)
+
+  // Por defecto el instrumento queda en la sede del integrante.
+  const sedeElegida = sedeId || integrante?.sedeId || ""
 
   const errores = useMemo(() => {
     const e: Record<string, string> = {}
     if (!instrumentoId) e.instrumento = "Selecciona un instrumento disponible."
-    if (!estudianteId) e.estudiante = "Selecciona el estudiante que recibirá el instrumento."
-    if (!fechaInicio) e.fechaInicio = "Indica la fecha de entrega."
+    if (!integranteId) e.integrante = "Selecciona el integrante que recibirá el instrumento."
+    if (!sedeElegida) e.sede = "Indica en qué sede quedará el instrumento."
+    if (!fechaInicio) e.fechaInicio = "Indica la fecha de asignación."
     if (!fechaFin) e.fechaFin = "Indica la fecha de devolución."
-    else if (fechaFin <= fechaInicio) e.fechaFin = "La devolución debe ser posterior a la entrega."
+    else if (fechaFin <= fechaInicio) e.fechaFin = "La devolución debe ser posterior a la asignación."
     return e
-  }, [instrumentoId, estudianteId, fechaInicio, fechaFin])
+  }, [instrumentoId, integranteId, sedeElegida, fechaInicio, fechaFin])
 
-  const menorSinRepresentante = estudiante && edad(estudiante.fechaNacimiento) < 18 && !estudiante.representante
-  const yaTieneComodato = estudiante ? store.comodatosDeEstudiante(estudiante.id).length : 0
+  const menorSinRepresentante = integrante && edad(integrante.fechaNacimiento) < 18 && !integrante.representante
+  const otrosComodatos = integrante
+    ? store.comodatosDeIntegrante(integrante.id).filter((c) => c.id !== comodato?.id).length
+    : 0
 
-  const registrar = () => {
+  const guardar = () => {
     setIntentado(true)
-    if (Object.keys(errores).length || !instrumento || !estudiante) return
-    const c = store.crearComodato({
+    if (Object.keys(errores).length || !instrumento || !integrante) return
+    const datos = {
       instrumentoId,
-      estudianteId,
+      integranteId,
+      sedeId: sedeElegida,
       fechaInicio,
       fechaFin,
       condicionEntrega: (condicion || instrumento.condicion) as CondicionFisica,
       observaciones: observaciones.trim() || undefined,
-    })
+    }
+    if (comodato) {
+      store.actualizarComodato(comodato.id, datos)
+      toast.success(`Comodato ${comodato.numero} actualizado`)
+      onOpenChange(false)
+      return
+    }
+    const c = store.crearComodato(datos)
     onOpenChange(false)
     toast.success(`Comodato ${c.numero} registrado`, {
-      description: `${instrumento.codigo} asignado a ${nombreCompleto(estudiante)}.`,
+      description: `${instrumento.codigo} asignado a ${nombreCompleto(integrante)} · ${nombreSede(store.sede(sedeElegida))}.`,
       action: {
         label: "Descargar PDF",
-        onClick: () => descargarContrato({ comodato: c, instrumento, estudiante, ubicacion: store.ubicacion(instrumento.ubicacionId) }),
+        onClick: () =>
+          descargarContrato({
+            comodato: c,
+            instrumento,
+            integrante,
+            sede: store.sede(sedeElegida),
+            sedeIntegrante: store.sede(integrante.sedeId),
+          }),
       },
     })
   }
@@ -87,10 +114,11 @@ export function NuevoComodatoDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Nuevo comodato</DialogTitle>
+          <DialogTitle>{editando ? `Editar comodato ${comodato.numero}` : "Nuevo comodato"}</DialogTitle>
           <DialogDescription>
-            Asigna un instrumento disponible a un estudiante. Al registrarlo, el instrumento pasa a “En comodato” y su
-            ubicación de resguardo queda suspendida.
+            {editando
+              ? "Corrige las fechas, la sede o las observaciones del préstamo."
+              : "Asigna un instrumento disponible a un integrante. El instrumento pasa a “En comodato” y su sede de resguardo queda suspendida."}
           </DialogDescription>
         </DialogHeader>
 
@@ -109,58 +137,74 @@ export function NuevoComodatoDialog({
               options={disponibles.map((i) => ({
                 value: i.id,
                 label: `${i.codigo} · ${i.nombre} ${i.marca}`,
-                hint: i.medida,
+                hint: i.familia,
               }))}
             />
             {instrumento && (
               <p className="text-muted-foreground text-xs">
                 {instrumento.marca} {instrumento.modelo} · Serial {instrumento.serial} · Resguardo:{" "}
-                {rutaUbicacion(store.ubicacion(instrumento.ubicacionId))}
+                {nombreSede(store.sede(instrumento.sedeId))}
               </p>
             )}
             <FieldError>{err("instrumento")}</FieldError>
           </Field>
 
-          <Field data-invalid={!!err("estudiante")}>
-            <FieldLabel htmlFor="nc-estudiante">Estudiante</FieldLabel>
+          <Field data-invalid={!!err("integrante")}>
+            <FieldLabel htmlFor="nc-integrante">Integrante</FieldLabel>
             <SelectField
-              id="nc-estudiante"
-              value={estudianteId}
-              onChange={setEstudianteId}
-              invalid={!!err("estudiante")}
-              options={db.estudiantes.map((e) => ({
+              id="nc-integrante"
+              value={integranteId}
+              onChange={(v) => {
+                setIntegranteId(v)
+                if (!comodato) setSedeId("")
+              }}
+              invalid={!!err("integrante")}
+              options={db.integrantes.map((e) => ({
                 value: e.id,
                 label: `${nombreCompleto(e)} · ${e.cedula}`,
                 hint: e.catedra,
               }))}
             />
-            {estudiante && (
+            {integrante && (
               <p className="text-muted-foreground text-xs">
-                {estudiante.catedra} · {estudiante.nucleo} · {edad(estudiante.fechaNacimiento)} años
-                {estudiante.representante && ` · Representante: ${estudiante.representante.nombre}`}
+                {integrante.catedra} · {nombreSede(store.sede(integrante.sedeId))} · {edad(integrante.fechaNacimiento)} años
+                {integrante.representante && ` · Representante: ${integrante.representante.nombre}`}
               </p>
             )}
-            <FieldError>{err("estudiante")}</FieldError>
+            <FieldError>{err("integrante")}</FieldError>
+          </Field>
+
+          <Field data-invalid={!!err("sede")}>
+            <FieldLabel htmlFor="nc-sede">Sede donde quedará el instrumento</FieldLabel>
+            <SelectField
+              id="nc-sede"
+              value={sedeElegida}
+              onChange={setSedeId}
+              invalid={!!err("sede")}
+              options={db.sedes.map((s) => ({ value: s.id, label: sedeConDireccion(s) }))}
+            />
+            <FieldDescription>Por defecto, la sede del integrante. Cámbiala si ensaya en otra.</FieldDescription>
+            <FieldError>{err("sede")}</FieldError>
           </Field>
 
           {menorSinRepresentante && (
             <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
               <TriangleAlert />
-              <AlertTitle>Estudiante menor de edad sin representante</AlertTitle>
+              <AlertTitle>Integrante menor de edad sin representante</AlertTitle>
               <AlertDescription>El contrato debería firmarlo un representante legal. Regístralo antes de imprimir.</AlertDescription>
             </Alert>
           )}
-          {yaTieneComodato > 0 && (
+          {otrosComodatos > 0 && (
             <Alert>
               <TriangleAlert />
-              <AlertTitle>Este estudiante ya tiene {yaTieneComodato} instrumento(s) en comodato</AlertTitle>
-              <AlertDescription>¿Se permite más de un comodato por estudiante? Regla a confirmar con la orquesta.</AlertDescription>
+              <AlertTitle>Este integrante ya tiene {otrosComodatos} instrumento(s) en comodato</AlertTitle>
+              <AlertDescription>¿Se permite más de un comodato por integrante? Regla a confirmar con la fundación.</AlertDescription>
             </Alert>
           )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field data-invalid={!!err("fechaInicio")}>
-              <FieldLabel htmlFor="nc-inicio">Fecha de entrega</FieldLabel>
+              <FieldLabel htmlFor="nc-inicio">Fecha de asignación</FieldLabel>
               <Input id="nc-inicio" type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} />
               <FieldError>{err("fechaInicio")}</FieldError>
             </Field>
@@ -210,9 +254,9 @@ export function NuevoComodatoDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={registrar}>
-            <FileDown data-icon="inline-start" />
-            Registrar comodato
+          <Button onClick={guardar}>
+            <Handshake data-icon="inline-start" />
+            {editando ? "Guardar cambios" : "Registrar comodato"}
           </Button>
         </DialogFooter>
       </DialogContent>

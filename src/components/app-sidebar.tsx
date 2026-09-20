@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom"
-import { GraduationCap, Handshake, LayoutDashboard, MapPin, Music, RotateCcw, ScanSearch } from "lucide-react"
+import { Building2, GraduationCap, Handshake, LayoutDashboard, Music, RotateCcw, ScanSearch } from "lucide-react"
 import { toast } from "sonner"
 import {
   Sidebar,
@@ -30,8 +30,8 @@ export function AppSidebar() {
   const gestion = [
     { to: "/instrumentos", label: "Instrumentos", icon: Music, badge: db.instrumentos.length },
     { to: "/comodatos", label: "Comodatos", icon: Handshake, badge: vencidos || undefined, alert: vencidos > 0 },
-    { to: "/estudiantes", label: "Estudiantes", icon: GraduationCap, badge: db.estudiantes.length },
-    { to: "/ubicaciones", label: "Ubicaciones", icon: MapPin },
+    { to: "/integrantes", label: "Integrantes", icon: GraduationCap, badge: db.integrantes.length },
+    { to: "/sedes", label: "Sedes", icon: Building2, badge: db.sedes.length },
   ]
 
   const isActive = (to: string) => (to === "/" ? pathname === "/" : pathname.startsWith(to))

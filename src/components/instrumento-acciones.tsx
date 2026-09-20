@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom"
-import { CircleCheck, Eye, FileDown, Handshake, MoreHorizontal, Trash2, Wrench } from "lucide-react"
+import { CircleCheck, Eye, FileDown, Handshake, MoreHorizontal, Pencil, Trash2, Wrench } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
@@ -21,13 +21,22 @@ export function useAccionesInstrumento() {
   const descargar = (instrumentoId: string) => {
     const c = store.comodatoDeInstrumento(instrumentoId)
     const i = store.instrumento(instrumentoId)
-    const e = c && store.estudiante(c.estudianteId)
+    const e = c && store.integrante(c.integranteId)
     if (!c || !i || !e) return
-    toast.promise(descargarContrato({ comodato: c, instrumento: i, estudiante: e, ubicacion: store.ubicacion(i.ubicacionId) }), {
-      loading: "Generando contrato…",
-      success: `Contrato ${c.numero} descargado`,
-      error: "No se pudo generar el PDF",
-    })
+    toast.promise(
+      descargarContrato({
+        comodato: c,
+        instrumento: i,
+        integrante: e,
+        sede: store.sede(c.sedeId),
+        sedeIntegrante: store.sede(e.sedeId),
+      }),
+      {
+        loading: "Generando contrato…",
+        success: `Contrato ${c.numero} descargado`,
+        error: "No se pudo generar el PDF",
+      }
+    )
   }
 
   const marcarReparado = (i: Instrumento) => {
@@ -51,20 +60,24 @@ export function InstrumentoAcciones({ instrumento: i, verFicha = true }: { instr
       >
         <MoreHorizontal />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
+      <DropdownMenuContent align="end" className="w-56">
         {verFicha && (
           <DropdownMenuItem onClick={() => navigate(`/consulta?codigo=${i.codigo}`)}>
             <Eye />
             Ver ficha completa
           </DropdownMenuItem>
         )}
+        <DropdownMenuItem onClick={() => dialogs.editarInstrumento(i.id)}>
+          <Pencil />
+          Editar instrumento
+        </DropdownMenuItem>
         {i.estado === "disponible" && (
           <>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => dialogs.nuevoComodato({ instrumentoId: i.id })}>
               <Handshake />
               Asignar en comodato
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => dialogs.enviarAReparacion(i.id)}>
               <Wrench />
               Enviar a reparación
@@ -79,6 +92,11 @@ export function InstrumentoAcciones({ instrumento: i, verFicha = true }: { instr
         )}
         {comodato && (
           <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => dialogs.editarComodato(comodato.id)}>
+              <Pencil />
+              Editar comodato
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => descargar(i.id)}>
               <FileDown />
               Descargar contrato PDF

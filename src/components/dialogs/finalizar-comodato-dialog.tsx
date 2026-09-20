@@ -15,25 +15,25 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { SelectField } from "@/components/select-field"
-import { formatDate, nombreCompleto, rutaUbicacion } from "@/lib/format"
+import { formatDate, nombreCompleto, sedeConDireccion, nombreSede } from "@/lib/format"
 import { useStore } from "@/lib/store"
 
 export function FinalizarComodatoDialog({ comodatoId, onClose }: { comodatoId: string | null; onClose: () => void }) {
   const store = useStore()
   const comodato = store.db.comodatos.find((c) => c.id === comodatoId)
   const instrumento = comodato && store.instrumento(comodato.instrumentoId)
-  const estudiante = comodato && store.estudiante(comodato.estudianteId)
-  const [ubicacionId, setUbicacionId] = useState<string>("")
+  const integrante = comodato && store.integrante(comodato.integranteId)
+  const [sedeId, setSedeId] = useState<string>("")
 
-  const destino = ubicacionId || instrumento?.ubicacionId || ""
+  const destino = sedeId || instrumento?.sedeId || ""
 
   const confirmar = () => {
     if (!comodato || !instrumento) return
     store.finalizarComodato(comodato.id, destino || null)
     toast.success(`Comodato ${comodato.numero} eliminado`, {
-      description: `${instrumento.codigo} vuelve a estar Disponible en ${rutaUbicacion(store.ubicacion(destino))}.`,
+      description: `${instrumento.codigo} vuelve a estar Disponible en ${nombreSede(store.sede(destino))}.`,
     })
-    setUbicacionId("")
+    setSedeId("")
     onClose()
   }
 
@@ -42,7 +42,7 @@ export function FinalizarComodatoDialog({ comodatoId, onClose }: { comodatoId: s
       open={!!comodato}
       onOpenChange={(o) => {
         if (!o) {
-          setUbicacionId("")
+          setSedeId("")
           onClose()
         }
       }}
@@ -54,11 +54,11 @@ export function FinalizarComodatoDialog({ comodatoId, onClose }: { comodatoId: s
           </AlertDialogMedia>
           <AlertDialogTitle>Finalizar y eliminar comodato</AlertDialogTitle>
           <AlertDialogDescription>
-            {comodato && instrumento && estudiante && (
+            {comodato && instrumento && integrante && (
               <>
                 <span className="text-foreground font-medium">{comodato.numero}</span> · {instrumento.codigo} (
                 {instrumento.nombre}) entregado a{" "}
-                <span className="text-foreground font-medium">{nombreCompleto(estudiante)}</span> el{" "}
+                <span className="text-foreground font-medium">{nombreCompleto(integrante)}</span> el{" "}
                 {formatDate(comodato.fechaInicio)}.
               </>
             )}
@@ -66,14 +66,14 @@ export function FinalizarComodatoDialog({ comodatoId, onClose }: { comodatoId: s
         </AlertDialogHeader>
 
         <Field>
-          <FieldLabel htmlFor="fc-ubicacion">Ubicación de resguardo al recibirlo</FieldLabel>
+          <FieldLabel htmlFor="fc-sede">Sede de resguardo al recibirlo</FieldLabel>
           <SelectField
-            id="fc-ubicacion"
+            id="fc-sede"
             value={destino}
-            onChange={setUbicacionId}
-            options={store.db.ubicaciones.map((u) => ({ value: u.id, label: rutaUbicacion(u) }))}
+            onChange={setSedeId}
+            options={store.db.sedes.map((s) => ({ value: s.id, label: sedeConDireccion(s) }))}
           />
-          <FieldDescription>Por defecto vuelve a su ubicación estática original.</FieldDescription>
+          <FieldDescription>Por defecto vuelve a su sede de resguardo original.</FieldDescription>
         </Field>
 
         <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
@@ -81,7 +81,7 @@ export function FinalizarComodatoDialog({ comodatoId, onClose }: { comodatoId: s
           <AlertTitle>El registro se eliminará por completo</AlertTitle>
           <AlertDescription>
             Así lo pide la propuesta (“purga el historial de esa asignación”). No quedará constancia de que este
-            estudiante tuvo el instrumento.
+            integrante tuvo el instrumento.
           </AlertDescription>
         </Alert>
 

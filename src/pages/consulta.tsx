@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Link, useSearchParams } from "react-router-dom"
 import {
+  Building2,
   CalendarDays,
-  ChevronRight,
   CircleCheck,
   FileDown,
   Handshake,
   Mail,
   MapPin,
   MapPinOff,
+  Pencil,
   Phone,
   ScanSearch,
   Search,
@@ -17,6 +18,7 @@ import {
   Wrench,
 } from "lucide-react"
 import { EstadoBadge, VencimientoBadge } from "@/components/estado-badge"
+import { FotoMiniatura } from "@/components/foto-instrumento"
 import { useAccionesInstrumento } from "@/components/instrumento-acciones"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -26,7 +28,17 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
-import { diffDays, edad, formatDate, iniciales, nombreCompleto, rutaUbicacion, todayIso, vencimiento } from "@/lib/format"
+import {
+  diffDays,
+  edad,
+  formatDate,
+  iniciales,
+  nombreCompleto,
+  nombreSede,
+  sedeConDireccion,
+  todayIso,
+  vencimiento,
+} from "@/lib/format"
 import type { Instrumento } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -51,12 +63,12 @@ export function ConsultaPage() {
     const q = query.trim().toUpperCase()
     if (!q || q === codigo) return []
     return store.db.instrumentos
-      .filter((i) => i.codigo.includes(q) || i.nombre.toUpperCase().includes(q) || i.serial.includes(q))
+      .filter((i) => i.codigo.toUpperCase().includes(q) || i.nombre.toUpperCase().includes(q) || i.serial.includes(q))
       .slice(0, 6)
   }, [query, codigo, store.db.instrumentos])
 
   const buscar = (valor: string) => {
-    const v = valor.trim().toUpperCase()
+    const v = valor.trim()
     setAbierto(false)
     setParams(v ? { codigo: v } : {})
   }
@@ -66,7 +78,7 @@ export function ConsultaPage() {
       <div className="space-y-1">
         <h1 className="font-heading text-2xl font-semibold tracking-tight">Consulta de instrumentos</h1>
         <p className="text-muted-foreground text-sm">
-          Ingresa el código del instrumento para ver su ficha técnica, estado, ubicación y el estudiante asignado.
+          Ingresa el código del instrumento para ver su ficha técnica, estado, sede y el integrante asignado.
         </p>
       </div>
 
@@ -83,8 +95,8 @@ export function ConsultaPage() {
             </InputGroupAddon>
             <InputGroupInput
               ref={inputRef}
-              className="font-mono text-base uppercase placeholder:font-sans placeholder:normal-case"
-              placeholder="Código de inventario, ej. OSC-VLN-001 o VLN-001"
+              className="font-mono text-base placeholder:font-sans"
+              placeholder="Código de inventario, ej. Pi001-FOSC o Pi001"
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value)
@@ -112,6 +124,7 @@ export function ConsultaPage() {
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => buscar(i.codigo)}
               >
+                <FotoMiniatura foto={i.foto} className="size-7" />
                 <span className="font-mono text-xs">{i.codigo}</span>
                 <span className="text-muted-foreground truncate">
                   {i.nombre} {i.marca}
@@ -132,7 +145,9 @@ export function ConsultaPage() {
 
 function SinBusqueda({ onPick }: { onPick: (c: string) => void }) {
   const { store } = useAccionesInstrumento()
-  const ejemplos = ["comodato", "disponible", "reparacion"].map((e) => store.db.instrumentos.find((i) => i.estado === e)).filter(Boolean) as Instrumento[]
+  const ejemplos = ["comodato", "disponible", "reparacion"]
+    .map((e) => store.db.instrumentos.find((i) => i.estado === e))
+    .filter(Boolean) as Instrumento[]
   return (
     <Empty className="border border-dashed">
       <EmptyHeader>
@@ -160,8 +175,8 @@ function SinBusqueda({ onPick }: { onPick: (c: string) => void }) {
 
 function NoEncontrado({ codigo, onPick }: { codigo: string; onPick: (c: string) => void }) {
   const { store } = useAccionesInstrumento()
-  const prefijo = codigo.replace(/^OSC-/, "").split("-")[0]
-  const parecidos = store.db.instrumentos.filter((i) => i.codigo.includes(prefijo)).slice(0, 4)
+  const letras = codigo.replace(/[^A-Za-z]/g, "").slice(0, 2).toLowerCase()
+  const parecidos = store.db.instrumentos.filter((i) => i.codigo.toLowerCase().startsWith(letras)).slice(0, 4)
   return (
     <Empty className="border border-dashed">
       <EmptyHeader>
@@ -201,27 +216,34 @@ function Dato({ label, children, className }: { label: string; children: React.R
 function VistaIntegrada({ instrumento: i }: { instrumento: Instrumento }) {
   const { store, dialogs, descargar, marcarReparado } = useAccionesInstrumento()
   const comodato = store.comodatoDeInstrumento(i.id)
-  const estudiante = comodato && store.estudiante(comodato.estudianteId)
-  const ubicacion = store.ubicacion(i.ubicacionId)
+  const integrante = comodato && store.integrante(comodato.integranteId)
+  const sedeResguardo = store.sede(i.sedeId)
+  const sedeComodato = comodato && store.sede(comodato.sedeId)
 
   return (
     <div className="space-y-4">
       {/* Encabezado del activo */}
       <Card>
         <CardContent className="flex flex-col gap-4 md:flex-row md:items-center">
+          <FotoMiniatura foto={i.foto} className="size-20 shrink-0" />
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-muted-foreground font-mono text-sm">{i.codigo}</span>
               <EstadoBadge estado={i.estado} />
+              <Badge variant="secondary">{i.familia}</Badge>
             </div>
             <h2 className="font-heading text-xl font-semibold">
               {i.nombre} {i.marca} {i.modelo}
             </h2>
             <p className="text-muted-foreground text-sm">
-              {i.familia} · {i.medida ? `Medida ${i.medida} · ` : ""}Adquirido en {i.anioAdquisicion}
+              {i.medida ? `Medida ${i.medida} · ` : ""}Adquirido en {i.anioAdquisicion}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => dialogs.editarInstrumento(i.id)}>
+              <Pencil data-icon="inline-start" />
+              Editar
+            </Button>
             {i.estado === "disponible" && (
               <>
                 <Button onClick={() => dialogs.nuevoComodato({ instrumentoId: i.id })}>
@@ -230,7 +252,7 @@ function VistaIntegrada({ instrumento: i }: { instrumento: Instrumento }) {
                 </Button>
                 <Button variant="outline" onClick={() => dialogs.enviarAReparacion(i.id)}>
                   <Wrench data-icon="inline-start" />
-                  Enviar a reparación
+                  Reparación
                 </Button>
               </>
             )}
@@ -248,7 +270,7 @@ function VistaIntegrada({ instrumento: i }: { instrumento: Instrumento }) {
                 </Button>
                 <Button variant="outline" onClick={() => dialogs.finalizarComodato(comodato.id)}>
                   <Trash2 data-icon="inline-start" />
-                  Finalizar comodato
+                  Finalizar
                 </Button>
               </>
             )}
@@ -257,48 +279,63 @@ function VistaIntegrada({ instrumento: i }: { instrumento: Instrumento }) {
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Estudiante / disponibilidad */}
-        {comodato && estudiante ? (
+        {/* Integrante / disponibilidad */}
+        {comodato && integrante ? (
           <Card className="ring-sky-200 dark:ring-sky-900">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <UserRound className="size-4" /> Estudiante asignado
+                <UserRound className="size-4" /> Integrante asignado
               </CardTitle>
-              <CardDescription>Comodato {comodato.numero}</CardDescription>
+              <CardDescription>
+                Comodato {comodato.numero} · asignado el {formatDate(comodato.fechaInicio)}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="flex items-center gap-3">
                 <Avatar className="size-12">
                   <AvatarFallback className="bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200">
-                    {iniciales(estudiante)}
+                    {iniciales(integrante)}
                   </AvatarFallback>
                 </Avatar>
-                <div>
-                  <p className="font-semibold">{nombreCompleto(estudiante)}</p>
+                <div className="min-w-0">
+                  <p className="font-semibold">{nombreCompleto(integrante)}</p>
                   <p className="text-muted-foreground text-sm">
-                    {estudiante.cedula} · {edad(estudiante.fechaNacimiento)} años
+                    C.I. {integrante.cedula} · {edad(integrante.fechaNacimiento)} años
                   </p>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="ml-auto"
+                  onClick={() => dialogs.editarIntegrante(integrante.id)}
+                  aria-label="Editar integrante"
+                >
+                  <Pencil />
+                </Button>
               </div>
               <dl className="grid grid-cols-2 gap-4">
-                <Dato label="Cátedra">{estudiante.catedra}</Dato>
-                <Dato label="Núcleo">{estudiante.nucleo}</Dato>
+                <Dato label="Cátedra">{integrante.catedra}</Dato>
+                <Dato label="Sede del integrante">{nombreSede(store.sede(integrante.sedeId))}</Dato>
                 <Dato label="Teléfono">
-                  <a href={`tel:${estudiante.telefono}`} className="inline-flex items-center gap-1 hover:underline">
+                  <a href={`tel:${integrante.telefono}`} className="inline-flex items-center gap-1 hover:underline">
                     <Phone className="size-3" />
-                    {estudiante.telefono}
+                    {integrante.telefono}
                   </a>
                 </Dato>
                 <Dato label="Correo">
-                  <a href={`mailto:${estudiante.email}`} className="inline-flex items-center gap-1 break-all hover:underline">
+                  <a href={`mailto:${integrante.email}`} className="inline-flex items-center gap-1 break-all hover:underline">
                     <Mail className="size-3 shrink-0" />
-                    {estudiante.email}
+                    {integrante.email}
                   </a>
                 </Dato>
-                {estudiante.representante && (
+                <Dato label="Dirección fiscal" className="col-span-2">
+                  {integrante.direccionFiscal}
+                </Dato>
+                {integrante.representante && (
                   <Dato label="Representante" className="col-span-2">
-                    {estudiante.representante.nombre} ({estudiante.representante.parentesco}) ·{" "}
-                    {estudiante.representante.cedula} · {estudiante.representante.telefono}
+                    {integrante.representante.nombre} ({integrante.representante.parentesco}) · C.I.{" "}
+                    {integrante.representante.cedula} · RIF {integrante.representante.rif} ·{" "}
+                    {integrante.representante.telefono}
                   </Dato>
                 )}
               </dl>
@@ -310,20 +347,26 @@ function VistaIntegrada({ instrumento: i }: { instrumento: Instrumento }) {
                   {comodato.observaciones}
                 </p>
               )}
-              <VencimientoBadge v={vencimiento(comodato)} />
+              <div className="flex items-center gap-2">
+                <VencimientoBadge v={vencimiento(comodato)} />
+                <Button variant="ghost" size="sm" onClick={() => dialogs.editarComodato(comodato.id)}>
+                  <Pencil data-icon="inline-start" />
+                  Editar comodato
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ) : (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <UserRound className="size-4" /> Estudiante asignado
+                <UserRound className="size-4" /> Integrante asignado
               </CardTitle>
             </CardHeader>
             <CardContent>
               <Empty className="bg-muted/40 p-6">
                 <EmptyHeader>
-                  <EmptyTitle>Sin estudiante asignado</EmptyTitle>
+                  <EmptyTitle>Sin integrante asignado</EmptyTitle>
                   <EmptyDescription>
                     {i.estado === "reparacion"
                       ? "El instrumento está en reparación y no puede asignarse hasta que se marque como reparado."
@@ -336,54 +379,53 @@ function VistaIntegrada({ instrumento: i }: { instrumento: Instrumento }) {
         )}
 
         <div className="space-y-4">
-          {/* Ubicación dinámica */}
+          {/* Sede: dinámica si está en comodato */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MapPin className="size-4" /> Ubicación
               </CardTitle>
               <CardDescription>
-                {comodato ? "Ubicación dinámica: el instrumento está en préstamo." : "Ubicación estática de resguardo."}
+                {comodato ? "Ubicación dinámica: el instrumento está en préstamo." : "Sede de resguardo."}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {comodato && estudiante ? (
+              {comodato && integrante ? (
                 <>
                   <div className="flex items-start gap-3 rounded-lg bg-sky-50 p-3 text-sky-900 dark:bg-sky-950 dark:text-sky-100">
                     <Handshake className="mt-0.5 size-4 shrink-0" />
                     <p className="text-sm">
-                      <span className="font-semibold">En préstamo</span> — asignado a {nombreCompleto(estudiante)},
-                      estudiante de la Orquesta Sinfónica de Carabobo ({estudiante.nucleo}).
+                      <span className="font-semibold">En comodato en la sede {sedeComodato?.nombre ?? "—"}</span> —
+                      asignado a {nombreCompleto(integrante)}, integrante de la Orquesta Sinfónica de Carabobo.
+                      {sedeComodato?.direccion && (
+                        <span className="text-sky-700 dark:text-sky-300"> {sedeComodato.direccion}.</span>
+                      )}
                     </p>
                   </div>
                   <div className="text-muted-foreground flex items-start gap-3 text-sm">
                     <MapPinOff className="mt-0.5 size-4 shrink-0" />
                     <p>
-                      Resguardo suspendido: <span className="line-through">{rutaUbicacion(ubicacion)}</span>. Volverá
-                      aquí al finalizar el comodato.
+                      Resguardo suspendido: <span className="line-through">{sedeConDireccion(sedeResguardo)}</span>.
+                      Volverá allí al finalizar el comodato.
                     </p>
                   </div>
                 </>
-              ) : ubicacion ? (
+              ) : sedeResguardo ? (
                 <>
-                  <div className="flex flex-wrap items-center gap-1 text-sm font-medium">
-                    {[ubicacion.sede, ubicacion.direccion, ubicacion.espacio].map((p, idx) => (
-                      <span key={idx} className="flex items-center gap-1">
-                        {idx > 0 && <ChevronRight className="text-muted-foreground size-3.5" />}
-                        <span className={idx === 2 ? "bg-muted rounded-md px-2 py-0.5" : ""}>{p}</span>
-                      </span>
-                    ))}
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Building2 className="text-muted-foreground size-4" />
+                    <span className="bg-muted rounded-md px-2 py-0.5">{sedeResguardo.nombre}</span>
+                    <span className="text-muted-foreground font-normal">{sedeResguardo.direccion}</span>
                   </div>
-                  {ubicacion.detalle && <p className="text-muted-foreground text-sm">{ubicacion.detalle}</p>}
+                  {sedeResguardo.detalle && <p className="text-muted-foreground text-sm">{sedeResguardo.detalle}</p>}
                   {i.estado === "reparacion" && (
                     <p className="text-sm text-amber-700 dark:text-amber-300">
-                      Nota: en reparación puede estar físicamente en un taller externo. ¿Registrar el taller como
-                      ubicación? (a definir)
+                      Nota: en reparación puede estar físicamente en un taller externo. ¿Registrar el taller? (a definir)
                     </p>
                   )}
                 </>
               ) : (
-                <p className="text-muted-foreground text-sm">Sin ubicación asignada.</p>
+                <p className="text-muted-foreground text-sm">Sin sede asignada.</p>
               )}
             </CardContent>
           </Card>
@@ -395,6 +437,7 @@ function VistaIntegrada({ instrumento: i }: { instrumento: Instrumento }) {
             </CardHeader>
             <CardContent className="space-y-4">
               <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                <Dato label="Familia">{i.familia}</Dato>
                 <Dato label="Marca">{i.marca}</Dato>
                 <Dato label="Modelo">{i.modelo}</Dato>
                 <Dato label="Serial">

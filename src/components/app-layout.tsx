@@ -15,8 +15,8 @@ const TITULOS: Record<string, string> = {
   "/consulta": "Consulta de instrumentos",
   "/instrumentos": "Instrumentos",
   "/comodatos": "Comodatos",
-  "/estudiantes": "Estudiantes",
-  "/ubicaciones": "Ubicaciones",
+  "/integrantes": "Integrantes",
+  "/sedes": "Sedes",
 }
 
 export function AppLayout() {
@@ -62,7 +62,7 @@ export function AppLayout() {
               onSubmit={(e) => {
                 e.preventDefault()
                 if (!codigo.trim()) return
-                navigate(`/consulta?codigo=${encodeURIComponent(codigo.trim().toUpperCase())}`)
+                navigate(`/consulta?codigo=${encodeURIComponent(codigo.trim())}`)
                 setCodigo("")
                 inputRef.current?.blur()
               }}
@@ -73,7 +73,7 @@ export function AppLayout() {
                 </InputGroupAddon>
                 <InputGroupInput
                   ref={inputRef}
-                  placeholder="Código, ej. VLN-003"
+                  placeholder="Código, ej. Pi001"
                   value={codigo}
                   onChange={(e) => setCodigo(e.target.value)}
                   aria-label="Buscar instrumento por código"

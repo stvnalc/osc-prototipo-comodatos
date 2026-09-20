@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { FileDown, Info, Plus, Search, Trash2 } from "lucide-react"
+import { FileDown, Info, Pencil, Plus, Search, Trash2 } from "lucide-react"
 import { VencimientoBadge } from "@/components/estado-badge"
 import { useAccionesInstrumento } from "@/components/instrumento-acciones"
 import { PageHeader } from "@/components/page-header"
@@ -12,7 +12,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { formatDate, nombreCompleto, vencimiento } from "@/lib/format"
+import { formatDate, nombreCompleto, nombreSede, vencimiento } from "@/lib/format"
 
 type Filtro = "todos" | "por-vencer" | "vencido"
 
@@ -25,7 +25,7 @@ export function ComodatosPage() {
   const filas = useMemo(() => {
     const t = q.trim().toLowerCase()
     return store.db.comodatos
-      .map((c) => ({ c, i: store.instrumento(c.instrumentoId)!, e: store.estudiante(c.estudianteId)!, v: vencimiento(c) }))
+      .map((c) => ({ c, i: store.instrumento(c.instrumentoId)!, e: store.integrante(c.integranteId)!, v: vencimiento(c) }))
       .filter(({ i, e }) => i && e)
       .filter(({ v }) => filtro === "todos" || v.tipo === filtro)
       .filter(({ c, i, e }) => !t || [c.numero, i.codigo, i.nombre, nombreCompleto(e), e.cedula].some((x) => x.toLowerCase().includes(t)))
@@ -39,7 +39,7 @@ export function ComodatosPage() {
     <>
       <PageHeader
         title="Comodatos"
-        description="Instrumentos prestados a estudiantes, ordenados por fecha de devolución."
+        description="Instrumentos prestados a integrantes, ordenados por fecha de devolución."
         actions={
           <Button onClick={() => dialogs.nuevoComodato()}>
             <Plus data-icon="inline-start" />
@@ -84,7 +84,7 @@ export function ComodatosPage() {
               <Search />
             </InputGroupAddon>
             <InputGroupInput
-              placeholder="N° de comodato, código, estudiante o cédula"
+              placeholder="N° de comodato, código, integrante o cédula"
               value={q}
               onChange={(e) => {
                 setQ(e.target.value)
@@ -99,17 +99,18 @@ export function ComodatosPage() {
                 <TableRow>
                   <TableHead>N°</TableHead>
                   <TableHead>Instrumento</TableHead>
-                  <TableHead>Estudiante</TableHead>
-                  <TableHead className="hidden lg:table-cell">Entrega</TableHead>
+                  <TableHead>Integrante</TableHead>
+                  <TableHead className="hidden lg:table-cell">Sede</TableHead>
+                  <TableHead className="hidden lg:table-cell">Asignado</TableHead>
                   <TableHead className="hidden md:table-cell">Devolución</TableHead>
                   <TableHead>Plazo</TableHead>
-                  <TableHead className="w-24 text-right">Acciones</TableHead>
+                  <TableHead className="w-28 text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {visibles.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-muted-foreground h-24 text-center">
+                    <TableCell colSpan={8} className="text-muted-foreground h-24 text-center">
                       No hay comodatos en esta vista.
                     </TableCell>
                   </TableRow>
@@ -127,6 +128,7 @@ export function ComodatosPage() {
                       <div className="font-medium">{nombreCompleto(e)}</div>
                       <div className="text-muted-foreground text-xs">{e.cedula}</div>
                     </TableCell>
+                    <TableCell className="hidden lg:table-cell">{nombreSede(store.sede(c.sedeId))}</TableCell>
                     <TableCell className="hidden lg:table-cell">{formatDate(c.fechaInicio)}</TableCell>
                     <TableCell className="hidden md:table-cell">{formatDate(c.fechaFin)}</TableCell>
                     <TableCell>
@@ -134,6 +136,12 @@ export function ComodatosPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">
+                        <Tooltip>
+                          <TooltipTrigger render={<Button variant="ghost" size="icon-sm" onClick={() => dialogs.editarComodato(c.id)} aria-label="Editar comodato" />}>
+                            <Pencil />
+                          </TooltipTrigger>
+                          <TooltipContent>Editar comodato</TooltipContent>
+                        </Tooltip>
                         <Tooltip>
                           <TooltipTrigger render={<Button variant="ghost" size="icon-sm" onClick={() => descargar(i.id)} aria-label="Descargar contrato" />}>
                             <FileDown />

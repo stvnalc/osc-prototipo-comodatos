@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { formatDate, nombreCompleto, vencimiento } from "@/lib/format"
-import type { EstadoInstrumento, Familia } from "@/lib/types"
+import { FAMILIAS, type EstadoInstrumento } from "@/lib/types"
 
-const FAMILIAS: Familia[] = ["Cuerdas", "Maderas", "Metales", "Percusión"]
 const COLOR: Record<EstadoInstrumento, string> = {
   disponible: "bg-emerald-500",
   comodato: "bg-sky-500",
@@ -23,9 +22,9 @@ export function PanelPage() {
   const cuenta = (e: EstadoInstrumento) => db.instrumentos.filter((i) => i.estado === e).length
 
   const stats = [
-    { label: "Instrumentos", value: total, icon: Music, hint: `${db.ubicaciones.length} sedes de resguardo`, to: "/instrumentos" },
+    { label: "Instrumentos", value: total, icon: Music, hint: `${db.sedes.length} sedes`, to: "/instrumentos" },
     { label: "Disponibles", value: cuenta("disponible"), icon: CircleCheck, hint: "Listos para asignar", to: "/instrumentos?estado=disponible", tone: "text-emerald-600" },
-    { label: "En comodato", value: cuenta("comodato"), icon: Handshake, hint: `${db.estudiantes.length} estudiantes registrados`, to: "/instrumentos?estado=comodato", tone: "text-sky-600" },
+    { label: "En comodato", value: cuenta("comodato"), icon: Handshake, hint: `${db.integrantes.length} integrantes registrados`, to: "/instrumentos?estado=comodato", tone: "text-sky-600" },
     { label: "En reparación", value: cuenta("reparacion"), icon: Wrench, hint: "Fuera de servicio", to: "/instrumentos?estado=reparacion", tone: "text-amber-600" },
   ]
 
@@ -86,7 +85,7 @@ export function PanelPage() {
               <ul className="divide-y">
                 {atencion.map(({ c, v }) => {
                   const i = store.instrumento(c.instrumentoId)
-                  const e = store.estudiante(c.estudianteId)
+                  const e = store.integrante(c.integranteId)
                   if (!i || !e) return null
                   return (
                     <li key={c.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
@@ -166,7 +165,7 @@ export function PanelPage() {
           <ul className="divide-y">
             {recientes.map((c) => {
               const i = store.instrumento(c.instrumentoId)
-              const e = store.estudiante(c.estudianteId)
+              const e = store.integrante(c.integranteId)
               if (!i || !e) return null
               return (
                 <li key={c.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5 text-sm">

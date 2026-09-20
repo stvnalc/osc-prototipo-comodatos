@@ -1,4 +1,4 @@
-import type { Comodato, EstadoInstrumento, Estudiante, Ubicacion } from "./types"
+import type { Comodato, EstadoInstrumento, Integrante, Sede } from "./types"
 
 export function todayIso(): string {
   const d = new Date()
@@ -39,16 +39,20 @@ export const ESTADO_LABEL: Record<EstadoInstrumento, string> = {
   reparacion: "En reparación",
 }
 
-export function rutaUbicacion(u: Ubicacion | undefined | null): string {
-  if (!u) return "Sin ubicación asignada"
-  return `${u.sede} - ${u.direccion} - ${u.espacio}`
+export function nombreSede(s: Sede | undefined | null): string {
+  return s ? s.nombre : "Sin sede asignada"
 }
 
-export function nombreCompleto(e: Estudiante): string {
+export function sedeConDireccion(s: Sede | undefined | null): string {
+  if (!s) return "Sin sede asignada"
+  return s.direccion ? `${s.nombre} — ${s.direccion}` : s.nombre
+}
+
+export function nombreCompleto(e: Integrante): string {
   return `${e.nombres} ${e.apellidos}`
 }
 
-export function iniciales(e: Estudiante): string {
+export function iniciales(e: Integrante): string {
   return `${e.nombres[0] ?? ""}${e.apellidos[0] ?? ""}`.toUpperCase()
 }
 
