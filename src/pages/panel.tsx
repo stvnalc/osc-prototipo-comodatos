@@ -23,9 +23,9 @@ export function PanelPage() {
 
   const stats = [
     { label: "Instrumentos", value: total, icon: Music, hint: `${db.sedes.length} sedes`, to: "/instrumentos" },
-    { label: "Disponibles", value: cuenta("disponible"), icon: CircleCheck, hint: "Listos para asignar", to: "/instrumentos?estado=disponible", tone: "text-emerald-600" },
-    { label: "En comodato", value: cuenta("comodato"), icon: Handshake, hint: `${db.integrantes.length} integrantes registrados`, to: "/instrumentos?estado=comodato", tone: "text-sky-600" },
-    { label: "En reparación", value: cuenta("reparacion"), icon: Wrench, hint: "Fuera de servicio", to: "/instrumentos?estado=reparacion", tone: "text-amber-600" },
+    { label: "Disponibles", value: cuenta("disponible"), icon: CircleCheck, hint: "Listos para asignar", to: "/instrumentos?estado=disponible", tone: "text-emerald-600 dark:text-emerald-400" },
+    { label: "En comodato", value: cuenta("comodato"), icon: Handshake, hint: `${db.integrantes.length} integrantes registrados`, to: "/instrumentos?estado=comodato", tone: "text-sky-600 dark:text-sky-400" },
+    { label: "En reparación", value: cuenta("reparacion"), icon: Wrench, hint: "Fuera de servicio", to: "/instrumentos?estado=reparacion", tone: "text-amber-600 dark:text-amber-400" },
   ]
 
   const atencion = db.comodatos

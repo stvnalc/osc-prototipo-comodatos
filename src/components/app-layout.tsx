@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { Outlet, useLocation, useNavigate } from "react-router-dom"
 import { Plus, Search } from "lucide-react"
 import { AppSidebar } from "@/components/app-sidebar"
+import { ModoTema } from "@/components/modo-tema"
 import { useDialogs } from "@/components/dialogs/dialogs-provider"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
@@ -83,6 +84,7 @@ export function AppLayout() {
                 </InputGroupAddon>
               </InputGroup>
             </form>
+            <ModoTema />
             <Button onClick={() => dialogs.nuevoComodato()} className="hidden md:inline-flex">
               <Plus data-icon="inline-start" />
               Nuevo comodato

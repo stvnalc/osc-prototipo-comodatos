@@ -1,3 +1,4 @@
+import { ThemeProvider } from "next-themes"
 import { BrowserRouter, Route, Routes } from "react-router-dom"
 import { AppLayout } from "@/components/app-layout"
 import { DialogsProvider } from "@/components/dialogs/dialogs-provider"
@@ -13,6 +14,7 @@ import { SedesPage } from "@/pages/sedes"
 
 export default function App() {
   return (
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
     <StoreProvider>
       <TooltipProvider>
         <BrowserRouter>
@@ -33,5 +35,6 @@ export default function App() {
         <Toaster position="bottom-right" />
       </TooltipProvider>
     </StoreProvider>
+    </ThemeProvider>
   )
 }
