@@ -10,9 +10,9 @@ import { useStore } from "@/lib/store"
 import type { Integrante } from "@/lib/types"
 
 const vacio = {
+  nombre: "",
   cedula: "",
-  nombres: "",
-  apellidos: "",
+  rif: "",
   fechaNacimiento: "",
   telefono: "",
   email: "",
@@ -28,9 +28,9 @@ const vacio = {
 
 function desde(e: Integrante): typeof vacio {
   return {
-    cedula: e.cedula,
-    nombres: e.nombres,
-    apellidos: e.apellidos,
+    nombre: e.nombre,
+    cedula: e.cedula ?? "",
+    rif: e.rif ?? "",
     fechaNacimiento: e.fechaNacimiento,
     telefono: e.telefono,
     email: e.email,
@@ -49,11 +49,14 @@ export function IntegranteDialog({
   open,
   onOpenChange,
   integrante,
+  onCreado,
 }: {
   open: boolean
   onOpenChange: (o: boolean) => void
   /** Si viene, el diálogo edita ese integrante en lugar de crear uno nuevo. */
   integrante?: Integrante
+  /** Se llama al registrar uno nuevo (p. ej. para seleccionarlo en el comodato). */
+  onCreado?: (integrante: Integrante) => void
 }) {
   const store = useStore()
   const editando = !!integrante
@@ -62,13 +65,13 @@ export function IntegranteDialog({
   const set = (k: keyof typeof vacio) => (e: React.ChangeEvent<HTMLInputElement>) => setF((s) => ({ ...s, [k]: e.target.value }))
   const menor = f.fechaNacimiento ? edad(f.fechaNacimiento) < 18 : false
 
+  // La cédula y el RIF no son obligatorios (acuerdo del 2026-10-03), ni el
+  // representante, aunque el integrante sea menor de edad.
   const errores: Record<string, string> = {}
-  for (const k of ["cedula", "nombres", "apellidos", "fechaNacimiento", "telefono", "catedra", "sedeId", "direccionFiscal"] as const)
+  for (const k of ["nombre", "fechaNacimiento", "telefono", "catedra", "sedeId", "direccionFiscal"] as const)
     if (!f[k].trim()) errores[k] = "Requerido."
-  if (f.cedula && store.db.integrantes.some((e) => e.cedula === f.cedula.trim() && e.id !== integrante?.id))
+  if (f.cedula.trim() && store.db.integrantes.some((e) => e.cedula === f.cedula.trim() && e.id !== integrante?.id))
     errores.cedula = "Ya existe un integrante con esta cédula."
-  if (menor && (!f.repNombre.trim() || !f.repCedula.trim() || !f.repRif.trim()))
-    errores.rep = "Para menores de edad se requieren nombre, cédula y RIF del representante."
   const err = (k: string) => (intentado ? errores[k] : undefined)
 
   const cerrar = (o: boolean) => {
@@ -83,9 +86,9 @@ export function IntegranteDialog({
     setIntentado(true)
     if (Object.keys(errores).length) return
     const datos = {
-      cedula: f.cedula.trim(),
-      nombres: f.nombres.trim(),
-      apellidos: f.apellidos.trim(),
+      nombre: f.nombre.trim(),
+      cedula: f.cedula.trim() || undefined,
+      rif: f.rif.trim() || undefined,
       fechaNacimiento: f.fechaNacimiento,
       telefono: f.telefono.trim(),
       email: f.email.trim(),
@@ -95,19 +98,20 @@ export function IntegranteDialog({
       representante: f.repNombre.trim()
         ? {
             nombre: f.repNombre.trim(),
-            cedula: f.repCedula.trim(),
-            rif: f.repRif.trim(),
-            telefono: f.repTelefono.trim(),
+            cedula: f.repCedula.trim() || undefined,
+            rif: f.repRif.trim() || undefined,
+            telefono: f.repTelefono.trim() || undefined,
             parentesco: f.repParentesco.trim() || "Representante",
           }
         : undefined,
     }
     if (integrante) {
       store.actualizarIntegrante(integrante.id, datos)
-      toast.success(`${nombreCompleto({ ...integrante, ...datos })} actualizado(a)`)
+      toast.success(`${datos.nombre} actualizado(a)`)
     } else {
       const e = store.crearIntegrante(datos)
       toast.success(`${nombreCompleto(e)} registrado(a)`)
+      onCreado?.(e)
     }
     cerrar(false)
   }
@@ -128,16 +132,26 @@ export function IntegranteDialog({
           <DialogDescription>Datos necesarios para el contrato de comodato.</DialogDescription>
         </DialogHeader>
         <FieldGroup className="max-h-[65vh] gap-4 overflow-y-auto px-0.5 py-1">
+          <Field data-invalid={!!err("nombre")}>
+            <FieldLabel htmlFor="ne-nombre">Nombre completo</FieldLabel>
+            <Input
+              id="ne-nombre"
+              value={f.nombre}
+              onChange={set("nombre")}
+              aria-invalid={!!err("nombre") || undefined}
+              placeholder="Nombres y apellidos"
+            />
+            <FieldError>{err("nombre")}</FieldError>
+          </Field>
           <div className="grid gap-4 sm:grid-cols-2">
-            {campo("cedula", "Cédula del integrante", { placeholder: "V-30.000.000" })}
+            {campo("cedula", "Cédula (opcional)", { placeholder: "V-30.000.000" })}
+            {campo("rif", "RIF (opcional)", { placeholder: "V-300000000" })}
             {campo("fechaNacimiento", "Fecha de nacimiento", { type: "date" })}
-            {campo("nombres", "Nombres")}
-            {campo("apellidos", "Apellidos")}
             {campo("telefono", "Teléfono", { placeholder: "0414-000-0000" })}
             {campo("email", "Correo", { type: "email" })}
             {campo("catedra", "Cátedra", { placeholder: "Violín" })}
-            <Field data-invalid={!!err("sedeId")}>
-              <FieldLabel htmlFor="ne-sede">Sede</FieldLabel>
+            <Field data-invalid={!!err("sedeId")} className="sm:col-span-2">
+              <FieldLabel htmlFor="ne-sede">Sede recurrente a la que va el integrante</FieldLabel>
               <SelectField
                 id="ne-sede"
                 value={f.sedeId}
@@ -161,17 +175,19 @@ export function IntegranteDialog({
             <FieldError>{err("direccionFiscal")}</FieldError>
           </Field>
           <FieldSet>
-            <FieldLegend variant="label">
-              Representante legal {menor ? "(obligatorio: es menor de edad)" : "(solo si es menor de edad)"}
-            </FieldLegend>
+            <FieldLegend variant="label">Representante (opcional)</FieldLegend>
+            <FieldDescription>
+              {menor
+                ? "Es menor de edad: si hay representante, el instrumento se registra a su nombre en el contrato."
+                : "Los integrantes mayores de edad también pueden tener representante."}
+            </FieldDescription>
             <div className="grid gap-4 sm:grid-cols-2">
               {campo("repNombre", "Nombre completo")}
-              {campo("repCedula", "Cédula")}
-              {campo("repRif", "RIF", { placeholder: "V-123456789" })}
-              {campo("repTelefono", "Teléfono")}
+              {campo("repCedula", "Cédula (opcional)")}
+              {campo("repRif", "RIF (opcional)", { placeholder: "V-123456789" })}
+              {campo("repTelefono", "Teléfono (opcional)")}
               {campo("repParentesco", "Parentesco", { placeholder: "Madre, Padre…" })}
             </div>
-            {err("rep") && <FieldError>{err("rep")}</FieldError>}
           </FieldSet>
         </FieldGroup>
         <DialogFooter>

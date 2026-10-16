@@ -1,12 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
 import { todayIso } from "./format"
 import { buildSeed } from "./seed"
-import type { Comodato, Db, EstadoInstrumento, Instrumento, Integrante, Sede } from "./types"
+import { esActivo, type Comodato, type Db, type EstadoInstrumento, type Instrumento, type Integrante, type Sede } from "./types"
 
 // Store en memoria + localStorage que simula la API REST. Cada acción equivale
 // a un endpoint del backend (ver CLAUDE.md → "Endpoints sugeridos").
 
-const STORAGE_KEY = "osc-comodatos-demo-v2"
+const STORAGE_KEY = "osc-comodatos-demo-v3"
 
 function load(): Db {
   try {
@@ -22,7 +22,7 @@ function uid(prefix: string) {
   return `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 }
 
-export type NuevoComodato = Omit<Comodato, "id" | "numero" | "creadoEn">
+export type NuevoComodato = Omit<Comodato, "id" | "codigo" | "creadoEn" | "archivadoEn" | "motivoArchivo">
 export type NuevoInstrumento = Omit<Instrumento, "id" | "estado">
 export type NuevoIntegrante = Omit<Integrante, "id">
 
@@ -31,6 +31,9 @@ interface Store {
   instrumento: (id: string) => Instrumento | undefined
   integrante: (id: string) => Integrante | undefined
   sede: (id: string | null) => Sede | undefined
+  /** Comodatos vigentes (los archivados quedan fuera de todas las vistas activas). */
+  comodatosActivos: Comodato[]
+  comodatosArchivados: Comodato[]
   comodatoDeInstrumento: (instrumentoId: string) => Comodato | undefined
   comodatosDeIntegrante: (integranteId: string) => Comodato[]
   buscarPorCodigo: (codigo: string) => Instrumento | undefined
@@ -38,7 +41,7 @@ interface Store {
   sedeActual: (instrumento: Instrumento) => Sede | undefined
   crearComodato: (data: NuevoComodato) => Comodato
   actualizarComodato: (id: string, data: Partial<NuevoComodato>) => void
-  finalizarComodato: (comodatoId: string, sedeId: string | null) => void
+  archivarComodato: (comodatoId: string, sedeId: string | null, motivo: string) => void
   cambiarEstado: (instrumentoId: string, estado: Exclude<EstadoInstrumento, "comodato">, observaciones?: string) => void
   crearInstrumento: (data: NuevoInstrumento) => Instrumento
   actualizarInstrumento: (id: string, data: Partial<NuevoInstrumento>) => void
@@ -68,12 +71,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const instrumento = useCallback((id: string) => db.instrumentos.find((i) => i.id === id), [db])
   const integrante = useCallback((id: string) => db.integrantes.find((e) => e.id === id), [db])
   const sede = useCallback((id: string | null) => db.sedes.find((s) => s.id === id), [db])
+  const comodatosActivos = useMemo(() => db.comodatos.filter(esActivo), [db])
+  const comodatosArchivados = useMemo(
+    () => db.comodatos.filter((c) => !esActivo(c)).sort((a, b) => (b.archivadoEn ?? "").localeCompare(a.archivadoEn ?? "")),
+    [db]
+  )
   const comodatoDeInstrumento = useCallback(
-    (instrumentoId: string) => db.comodatos.find((c) => c.instrumentoId === instrumentoId),
+    (instrumentoId: string) => db.comodatos.find((c) => esActivo(c) && c.instrumentoId === instrumentoId),
     [db]
   )
   const comodatosDeIntegrante = useCallback(
-    (integranteId: string) => db.comodatos.filter((c) => c.integranteId === integranteId),
+    (integranteId: string) => db.comodatos.filter((c) => esActivo(c) && c.integranteId === integranteId),
     [db]
   )
   const buscarPorCodigo = useCallback(
@@ -90,7 +98,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   )
   const sedeActual = useCallback(
     (i: Instrumento) => {
-      const c = db.comodatos.find((x) => x.instrumentoId === i.id)
+      const c = db.comodatos.find((x) => esActivo(x) && x.instrumentoId === i.id)
       return db.sedes.find((s) => s.id === (c ? c.sedeId : i.sedeId))
     },
     [db]
@@ -99,15 +107,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const crearComodato = useCallback(
     (data: NuevoComodato) => {
       const anio = todayIso().slice(0, 4)
-      // Consecutivo por año. Como se eliminan los comodatos finalizados, en el
-      // backend conviene una secuencia propia para no reutilizar números.
+      // Consecutivo por año. Los archivados también cuentan: un código nunca
+      // se reutiliza (en el backend, una secuencia propia).
       const max = db.comodatos
-        .filter((c) => c.numero.startsWith(`CMD-${anio}-`))
-        .reduce((m, c) => Math.max(m, Number(c.numero.split("-")[2])), 0)
+        .filter((c) => c.codigo.startsWith(`CMD-${anio}-`))
+        .reduce((m, c) => Math.max(m, Number(c.codigo.split("-")[2])), 0)
       const creado: Comodato = {
         ...data,
         id: uid("c"),
-        numero: `CMD-${anio}-${String(max + 1).padStart(4, "0")}`,
+        codigo: `CMD-${anio}-${String(max + 1).padStart(4, "0")}`,
         creadoEn: todayIso(),
       }
       setDb((prev) => ({
@@ -124,15 +132,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setDb((prev) => ({ ...prev, comodatos: prev.comodatos.map((c) => (c.id === id ? { ...c, ...data } : c)) }))
   }, [])
 
-  // Regla de negocio de la propuesta: al finalizar, el instrumento vuelve a
-  // "Disponible" y el registro del comodato se ELIMINA (no queda historial).
-  const finalizarComodato = useCallback((comodatoId: string, sedeId: string | null) => {
+  // Acuerdo del 2026-10-03: al recibir el instrumento el comodato NO se borra,
+  // se ARCHIVA con la fecha y el motivo ("Creció y se le dio otro…"). El
+  // instrumento vuelve a "Disponible" en la sede de resguardo indicada.
+  const archivarComodato = useCallback((comodatoId: string, sedeId: string | null, motivo: string) => {
     setDb((prev) => {
       const c = prev.comodatos.find((x) => x.id === comodatoId)
       if (!c) return prev
       return {
         ...prev,
-        comodatos: prev.comodatos.filter((x) => x.id !== comodatoId),
+        comodatos: prev.comodatos.map((x) =>
+          x.id === comodatoId ? { ...x, archivadoEn: todayIso(), motivoArchivo: motivo } : x
+        ),
         instrumentos: prev.instrumentos.map((i) =>
           i.id === c.instrumentoId ? { ...i, estado: "disponible", sedeId: sedeId ?? i.sedeId } : i
         ),
@@ -182,13 +193,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       instrumento,
       integrante,
       sede,
+      comodatosActivos,
+      comodatosArchivados,
       comodatoDeInstrumento,
       comodatosDeIntegrante,
       buscarPorCodigo,
       sedeActual,
       crearComodato,
       actualizarComodato,
-      finalizarComodato,
+      archivarComodato,
       cambiarEstado,
       crearInstrumento,
       actualizarInstrumento,
@@ -197,7 +210,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       reset,
       sinEspacio,
     }),
-    [db, instrumento, integrante, sede, comodatoDeInstrumento, comodatosDeIntegrante, buscarPorCodigo, sedeActual, crearComodato, actualizarComodato, finalizarComodato, cambiarEstado, crearInstrumento, actualizarInstrumento, crearIntegrante, actualizarIntegrante, reset, sinEspacio]
+    [db, instrumento, integrante, sede, comodatosActivos, comodatosArchivados, comodatoDeInstrumento, comodatosDeIntegrante, buscarPorCodigo, sedeActual, crearComodato, actualizarComodato, archivarComodato, cambiarEstado, crearInstrumento, actualizarInstrumento, crearIntegrante, actualizarIntegrante, reset, sinEspacio]
   )
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>

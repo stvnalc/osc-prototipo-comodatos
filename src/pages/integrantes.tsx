@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { edad, formatDate, iniciales, nombreCompleto, nombreSede } from "@/lib/format"
+import { cedulaODash, edad, formatDate, iniciales, nombreCompleto, nombreSede } from "@/lib/format"
 import { useStore } from "@/lib/store"
 
 export function IntegrantesPage() {
@@ -25,7 +25,7 @@ export function IntegrantesPage() {
     return store.db.integrantes.filter(
       (e) =>
         !t ||
-        [nombreCompleto(e), e.cedula, e.catedra, nombreSede(store.sede(e.sedeId)), e.direccionFiscal].some((x) =>
+        [nombreCompleto(e), e.cedula ?? "", e.rif ?? "", e.catedra, nombreSede(store.sede(e.sedeId)), e.direccionFiscal].some((x) =>
           x.toLowerCase().includes(t)
         )
     )
@@ -84,8 +84,9 @@ export function IntegrantesPage() {
                           <div className="min-w-0">
                             <div className="font-medium">{nombreCompleto(e)}</div>
                             <div className="text-muted-foreground text-xs">
-                              {e.cedula} · {edad(e.fechaNacimiento)} años
-                              {menor && (e.representante ? " · con representante" : " · ⚠ sin representante")}
+                              {cedulaODash(e)} · {edad(e.fechaNacimiento)} años
+                              {menor && " · menor de edad"}
+                              {e.representante && ` · rep. ${e.representante.nombre}`}
                             </div>
                           </div>
                         </div>

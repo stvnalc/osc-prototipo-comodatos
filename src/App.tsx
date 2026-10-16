@@ -9,6 +9,7 @@ import { ComodatosPage } from "@/pages/comodatos"
 import { ConsultaPage } from "@/pages/consulta"
 import { IntegrantesPage } from "@/pages/integrantes"
 import { InstrumentosPage } from "@/pages/instrumentos"
+import { NovedadesPage } from "@/pages/novedades"
 import { PanelPage } from "@/pages/panel"
 import { SedesPage } from "@/pages/sedes"
 
@@ -27,6 +28,7 @@ export default function App() {
                 <Route path="comodatos" element={<ComodatosPage />} />
                 <Route path="integrantes" element={<IntegrantesPage />} />
                 <Route path="sedes" element={<SedesPage />} />
+                <Route path="novedades" element={<NovedadesPage />} />
                 <Route path="*" element={<PanelPage />} />
               </Route>
             </Routes>

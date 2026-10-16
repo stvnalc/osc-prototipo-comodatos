@@ -49,11 +49,17 @@ export function sedeConDireccion(s: Sede | undefined | null): string {
 }
 
 export function nombreCompleto(e: Integrante): string {
-  return `${e.nombres} ${e.apellidos}`
+  return e.nombre
 }
 
 export function iniciales(e: Integrante): string {
-  return `${e.nombres[0] ?? ""}${e.apellidos[0] ?? ""}`.toUpperCase()
+  const partes = e.nombre.trim().split(/\s+/)
+  return `${partes[0]?.[0] ?? ""}${partes[1]?.[0] ?? ""}`.toUpperCase()
+}
+
+/** La cédula es opcional: en las fichas se muestra un guion si no la tiene. */
+export function cedulaODash(e: { cedula?: string }): string {
+  return e.cedula?.trim() || "—"
 }
 
 export function edad(fechaNacimiento: string): number {

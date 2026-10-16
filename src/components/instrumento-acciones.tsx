@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom"
-import { CircleCheck, Eye, FileDown, Handshake, MoreHorizontal, Pencil, Trash2, Wrench } from "lucide-react"
+import { Archive, CircleCheck, Eye, FileDown, Handshake, MoreHorizontal, Pencil, Wrench } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
@@ -33,7 +33,7 @@ export function useAccionesInstrumento() {
       }),
       {
         loading: "Generando contrato…",
-        success: `Contrato ${c.numero} descargado`,
+        success: `Contrato ${c.codigo} descargado`,
         error: "No se pudo generar el PDF",
       }
     )
@@ -102,9 +102,9 @@ export function InstrumentoAcciones({ instrumento: i, verFicha = true }: { instr
               Descargar contrato PDF
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={() => dialogs.finalizarComodato(comodato.id)}>
-              <Trash2 />
-              Finalizar comodato
+            <DropdownMenuItem onClick={() => dialogs.archivarComodato(comodato.id)}>
+              <Archive />
+              Recibir y archivar comodato
             </DropdownMenuItem>
           </>
         )}

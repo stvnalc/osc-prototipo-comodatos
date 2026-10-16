@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom"
-import { ArrowRight, CircleCheck, Handshake, Music, Wrench } from "lucide-react"
+import { ArrowRight, Boxes, CircleCheck, Handshake, Wrench } from "lucide-react"
 import { VencimientoBadge } from "@/components/estado-badge"
 import { PageHeader } from "@/components/page-header"
 import { useAccionesInstrumento } from "@/components/instrumento-acciones"
@@ -22,18 +22,18 @@ export function PanelPage() {
   const cuenta = (e: EstadoInstrumento) => db.instrumentos.filter((i) => i.estado === e).length
 
   const stats = [
-    { label: "Instrumentos", value: total, icon: Music, hint: `${db.sedes.length} sedes`, to: "/instrumentos" },
+    { label: "Instrumentos", value: total, icon: Boxes, hint: `${db.sedes.length} sedes`, to: "/instrumentos" },
     { label: "Disponibles", value: cuenta("disponible"), icon: CircleCheck, hint: "Listos para asignar", to: "/instrumentos?estado=disponible", tone: "text-emerald-600 dark:text-emerald-400" },
     { label: "En comodato", value: cuenta("comodato"), icon: Handshake, hint: `${db.integrantes.length} integrantes registrados`, to: "/instrumentos?estado=comodato", tone: "text-sky-600 dark:text-sky-400" },
     { label: "En reparación", value: cuenta("reparacion"), icon: Wrench, hint: "Fuera de servicio", to: "/instrumentos?estado=reparacion", tone: "text-amber-600 dark:text-amber-400" },
   ]
 
-  const atencion = db.comodatos
+  const atencion = store.comodatosActivos
     .map((c) => ({ c, v: vencimiento(c) }))
     .filter(({ v }) => v.tipo !== "vigente")
     .sort((a, b) => a.v.dias - b.v.dias)
 
-  const recientes = [...db.comodatos].sort((a, b) => b.creadoEn.localeCompare(a.creadoEn)).slice(0, 5)
+  const recientes = [...store.comodatosActivos].sort((a, b) => b.creadoEn.localeCompare(a.creadoEn)).slice(0, 5)
 
   return (
     <>
@@ -102,7 +102,7 @@ export function PanelPage() {
                         <Button variant="outline" size="sm" onClick={() => descargar(i.id)}>
                           Contrato
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => dialogs.finalizarComodato(c.id)}>
+                        <Button variant="outline" size="sm" onClick={() => dialogs.archivarComodato(c.id)}>
                           Recibir
                         </Button>
                       </div>
@@ -169,7 +169,7 @@ export function PanelPage() {
               if (!i || !e) return null
               return (
                 <li key={c.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5 text-sm">
-                  <span className="text-muted-foreground w-28 font-mono text-xs">{c.numero}</span>
+                  <span className="text-muted-foreground w-28 font-mono text-xs">{c.codigo}</span>
                   <Link to={`/consulta?codigo=${i.codigo}`} className="font-medium hover:underline">
                     {i.codigo}
                   </Link>

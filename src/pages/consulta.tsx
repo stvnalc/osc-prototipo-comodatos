@@ -1,24 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Link, useSearchParams } from "react-router-dom"
 import {
-  Building2,
+  Archive,
   CalendarDays,
   CircleCheck,
   FileDown,
   Handshake,
   Mail,
-  MapPin,
-  MapPinOff,
   Pencil,
   Phone,
   ScanSearch,
   Search,
-  Trash2,
   UserRound,
   Wrench,
 } from "lucide-react"
 import { EstadoBadge, VencimientoBadge } from "@/components/estado-badge"
-import { FotoMiniatura } from "@/components/foto-instrumento"
+import { VerFotoButton } from "@/components/foto-instrumento"
 import { useAccionesInstrumento } from "@/components/instrumento-acciones"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -29,6 +26,7 @@ import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import {
+  cedulaODash,
   diffDays,
   edad,
   formatDate,
@@ -124,7 +122,6 @@ export function ConsultaPage() {
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => buscar(i.codigo)}
               >
-                <FotoMiniatura foto={i.foto} className="size-7" />
                 <span className="font-mono text-xs">{i.codigo}</span>
                 <span className="text-muted-foreground truncate">
                   {i.nombre} {i.marca}
@@ -225,7 +222,6 @@ function VistaIntegrada({ instrumento: i }: { instrumento: Instrumento }) {
       {/* Encabezado del activo */}
       <Card>
         <CardContent className="flex flex-col gap-4 md:flex-row md:items-center">
-          <FotoMiniatura foto={i.foto} className="size-20 shrink-0" />
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-muted-foreground font-mono text-sm">{i.codigo}</span>
@@ -240,6 +236,7 @@ function VistaIntegrada({ instrumento: i }: { instrumento: Instrumento }) {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <VerFotoButton foto={i.foto} codigo={i.codigo} nombre={`${i.nombre} ${i.marca} ${i.modelo}`} />
             <Button variant="outline" onClick={() => dialogs.editarInstrumento(i.id)}>
               <Pencil data-icon="inline-start" />
               Editar
@@ -268,9 +265,9 @@ function VistaIntegrada({ instrumento: i }: { instrumento: Instrumento }) {
                   <FileDown data-icon="inline-start" />
                   Contrato PDF
                 </Button>
-                <Button variant="outline" onClick={() => dialogs.finalizarComodato(comodato.id)}>
-                  <Trash2 data-icon="inline-start" />
-                  Finalizar
+                <Button variant="outline" onClick={() => dialogs.archivarComodato(comodato.id)}>
+                  <Archive data-icon="inline-start" />
+                  Recibir y archivar
                 </Button>
               </>
             )}
@@ -287,7 +284,7 @@ function VistaIntegrada({ instrumento: i }: { instrumento: Instrumento }) {
                 <UserRound className="size-4" /> Integrante asignado
               </CardTitle>
               <CardDescription>
-                Comodato {comodato.numero} · asignado el {formatDate(comodato.fechaInicio)}
+                Comodato {comodato.codigo} · asignado el {formatDate(comodato.fechaInicio)}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -300,7 +297,7 @@ function VistaIntegrada({ instrumento: i }: { instrumento: Instrumento }) {
                 <div className="min-w-0">
                   <p className="font-semibold">{nombreCompleto(integrante)}</p>
                   <p className="text-muted-foreground text-sm">
-                    C.I. {integrante.cedula} · {edad(integrante.fechaNacimiento)} años
+                    C.I. {cedulaODash(integrante)} · {edad(integrante.fechaNacimiento)} años
                   </p>
                 </div>
                 <Button
@@ -331,11 +328,17 @@ function VistaIntegrada({ instrumento: i }: { instrumento: Instrumento }) {
                 <Dato label="Dirección fiscal" className="col-span-2">
                   {integrante.direccionFiscal}
                 </Dato>
+                {integrante.rif && <Dato label="RIF">{integrante.rif}</Dato>}
                 {integrante.representante && (
                   <Dato label="Representante" className="col-span-2">
-                    {integrante.representante.nombre} ({integrante.representante.parentesco}) · C.I.{" "}
-                    {integrante.representante.cedula} · RIF {integrante.representante.rif} ·{" "}
-                    {integrante.representante.telefono}
+                    {[
+                      `${integrante.representante.nombre} (${integrante.representante.parentesco})`,
+                      integrante.representante.cedula && `C.I. ${integrante.representante.cedula}`,
+                      integrante.representante.rif && `RIF ${integrante.representante.rif}`,
+                      integrante.representante.telefono,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </Dato>
                 )}
               </dl>
@@ -379,57 +382,6 @@ function VistaIntegrada({ instrumento: i }: { instrumento: Instrumento }) {
         )}
 
         <div className="space-y-4">
-          {/* Sede: dinámica si está en comodato */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="size-4" /> Ubicación
-              </CardTitle>
-              <CardDescription>
-                {comodato ? "Ubicación dinámica: el instrumento está en préstamo." : "Sede de resguardo."}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {comodato && integrante ? (
-                <>
-                  <div className="flex items-start gap-3 rounded-lg bg-sky-50 p-3 text-sky-900 dark:bg-sky-950 dark:text-sky-100">
-                    <Handshake className="mt-0.5 size-4 shrink-0" />
-                    <p className="text-sm">
-                      <span className="font-semibold">En comodato en la sede {sedeComodato?.nombre ?? "—"}</span> —
-                      asignado a {nombreCompleto(integrante)}, integrante de la Orquesta Sinfónica de Carabobo.
-                      {sedeComodato?.direccion && (
-                        <span className="text-sky-700 dark:text-sky-300"> {sedeComodato.direccion}.</span>
-                      )}
-                    </p>
-                  </div>
-                  <div className="text-muted-foreground flex items-start gap-3 text-sm">
-                    <MapPinOff className="mt-0.5 size-4 shrink-0" />
-                    <p>
-                      Resguardo suspendido: <span className="line-through">{sedeConDireccion(sedeResguardo)}</span>.
-                      Volverá allí al finalizar el comodato.
-                    </p>
-                  </div>
-                </>
-              ) : sedeResguardo ? (
-                <>
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <Building2 className="text-muted-foreground size-4" />
-                    <span className="bg-muted rounded-md px-2 py-0.5">{sedeResguardo.nombre}</span>
-                    <span className="text-muted-foreground font-normal">{sedeResguardo.direccion}</span>
-                  </div>
-                  {sedeResguardo.detalle && <p className="text-muted-foreground text-sm">{sedeResguardo.detalle}</p>}
-                  {i.estado === "reparacion" && (
-                    <p className="text-sm text-amber-700 dark:text-amber-300">
-                      Nota: en reparación puede estar físicamente en un taller externo. ¿Registrar el taller? (a definir)
-                    </p>
-                  )}
-                </>
-              ) : (
-                <p className="text-muted-foreground text-sm">Sin sede asignada.</p>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Ficha técnica */}
           <Card>
             <CardHeader>
@@ -446,6 +398,13 @@ function VistaIntegrada({ instrumento: i }: { instrumento: Instrumento }) {
                 {i.medida && <Dato label="Medida">{i.medida}</Dato>}
                 {i.material && <Dato label="Material">{i.material}</Dato>}
                 <Dato label="Condición">{i.condicion}</Dato>
+                <Dato label="Año de adquisición">{i.anioAdquisicion}</Dato>
+                <Dato label={comodato ? "Sede durante el comodato" : "Sede de resguardo"} className="col-span-2 sm:col-span-3">
+                  {comodato ? sedeConDireccion(sedeComodato) : sedeConDireccion(sedeResguardo)}
+                  {!comodato && sedeResguardo?.detalle && (
+                    <span className="text-muted-foreground font-normal"> · {sedeResguardo.detalle}</span>
+                  )}
+                </Dato>
               </dl>
               <div className="space-y-1.5">
                 <p className="text-muted-foreground text-xs">Accesorios incluidos</p>

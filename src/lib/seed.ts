@@ -7,7 +7,7 @@ import type { Comodato, Db, Instrumento, Integrante, Sede } from "./types"
 const sedes: Sede[] = [
   { id: "s1", nombre: "Hesperia", direccion: "Av. Bolívar Norte, Valencia", detalle: "Depósito de instrumentos" },
   { id: "s2", nombre: "UJAP", direccion: "Universidad José Antonio Páez, San Diego", detalle: "Salón de ensayos" },
-  { id: "s3", nombre: "Av. Bolívar", direccion: "Av. Bolívar, Valencia", detalle: "Sede administrativa" },
+  { id: "s3", nombre: "Av. Bolívar", direccion: "CC Profesional", detalle: "Sede administrativa · Av. Bolívar, Valencia" },
 ]
 
 type Base = Omit<Instrumento, "id" | "codigo" | "estado" | "sedeId" | "condicion" | "anioAdquisicion" | "serial">
@@ -100,22 +100,22 @@ function buildInstrumentos(): Instrumento[] {
 }
 
 const integrantes: Integrante[] = [
-  { id: "e1", cedula: "V-31.245.876", nombres: "María Alejandra", apellidos: "Pérez Rodríguez", fechaNacimiento: "2009-03-14", telefono: "0414-412-3345", email: "maria.perez@correo.com", sedeId: "s1", catedra: "Violín", direccionFiscal: "Urb. La Viña, calle 132 N° 45-12, Valencia, Carabobo", representante: { nombre: "Carmen Rodríguez", cedula: "V-14.567.234", rif: "V-145672340", telefono: "0414-400-1122", parentesco: "Madre" } },
-  { id: "e2", cedula: "V-30.987.112", nombres: "José Gregorio", apellidos: "Hernández Díaz", fechaNacimiento: "2007-11-02", telefono: "0424-455-9087", email: "jose.hernandez@correo.com", sedeId: "s1", catedra: "Violín", direccionFiscal: "Prebo I, av. Los Nísperos N° 8, Valencia, Carabobo" },
-  { id: "e3", cedula: "V-33.120.554", nombres: "Valentina", apellidos: "Gómez Salas", fechaNacimiento: "2012-06-21", telefono: "0412-778-6521", email: "valen.gomez@correo.com", sedeId: "s2", catedra: "Violín", direccionFiscal: "Tarapío, calle 5 N° 22, Naguanagua, Carabobo", representante: { nombre: "Luis Gómez", cedula: "V-12.998.341", rif: "V-129983415", telefono: "0412-771-0090", parentesco: "Padre" } },
-  { id: "e4", cedula: "V-29.654.330", nombres: "Andrés Eduardo", apellidos: "Mendoza Rivas", fechaNacimiento: "2005-01-30", telefono: "0414-490-1276", email: "andres.mendoza@correo.com", sedeId: "s3", catedra: "Violín", direccionFiscal: "El Viñedo, av. Paseo Cabriales, res. Alba, Valencia" },
-  { id: "e5", cedula: "V-31.876.002", nombres: "Camila Sofía", apellidos: "Torres Blanco", fechaNacimiento: "2008-09-09", telefono: "0424-412-0033", email: "camila.torres@correo.com", sedeId: "s3", catedra: "Viola", direccionFiscal: "San José de Tarbes, calle 98 N° 14, Valencia", representante: { nombre: "Ana Blanco", cedula: "V-13.402.118", rif: "V-134021186", telefono: "0424-400-7788", parentesco: "Madre" } },
-  { id: "e6", cedula: "V-28.443.901", nombres: "Luis Ángel", apellidos: "Martínez Oropeza", fechaNacimiento: "2004-04-18", telefono: "0416-641-2290", email: "luis.martinez@correo.com", sedeId: "s3", catedra: "Violonchelo", direccionFiscal: "Los Guayos, sector Paraparal, casa 17, Carabobo" },
-  { id: "e7", cedula: "V-30.210.778", nombres: "Daniela", apellidos: "Castillo Peña", fechaNacimiento: "2006-12-05", telefono: "0414-422-8765", email: "daniela.castillo@correo.com", sedeId: "s2", catedra: "Contrabajo", direccionFiscal: "La Esmeralda, calle 3 N° 40, San Diego, Carabobo" },
-  { id: "e8", cedula: "V-32.554.119", nombres: "Sebastián", apellidos: "Rojas Medina", fechaNacimiento: "2010-02-27", telefono: "0412-409-3301", email: "sebas.rojas@correo.com", sedeId: "s1", catedra: "Flauta traversa", direccionFiscal: "Trigal Norte, av. 140 N° 99-3, Valencia", representante: { nombre: "Patricia Medina", cedula: "V-15.330.908", rif: "V-153309081", telefono: "0412-400-2211", parentesco: "Madre" } },
-  { id: "e9", cedula: "V-29.887.645", nombres: "Gabriela", apellidos: "Suárez León", fechaNacimiento: "2005-08-13", telefono: "0424-477-0192", email: "gabriela.suarez@correo.com", sedeId: "s3", catedra: "Clarinete", direccionFiscal: "Naguanagua centro, calle Comercio N° 12, Carabobo" },
-  { id: "e10", cedula: "V-31.009.874", nombres: "Diego Alejandro", apellidos: "Ramírez Colmenares", fechaNacimiento: "2008-05-03", telefono: "0414-499-6620", email: "diego.ramirez@correo.com", sedeId: "s2", catedra: "Trompeta", direccionFiscal: "Rancho Grande, calle principal N° 7, Puerto Cabello", representante: { nombre: "Rosa Colmenares", cedula: "V-11.876.542", rif: "V-118765429", telefono: "0414-488-3310", parentesco: "Madre" } },
-  { id: "e11", cedula: "V-30.556.013", nombres: "Isabella", apellidos: "Vargas Quintero", fechaNacimiento: "2007-07-19", telefono: "0416-600-4512", email: "isabella.vargas@correo.com", sedeId: "s3", catedra: "Corno francés", direccionFiscal: "Mañongo, res. Los Robles, apto 5B, Naguanagua" },
-  { id: "e12", cedula: "V-31.332.980", nombres: "Samuel", apellidos: "Álvarez Páez", fechaNacimiento: "2009-10-10", telefono: "0424-431-7788", email: "samuel.alvarez@correo.com", sedeId: "s2", catedra: "Trombón", direccionFiscal: "Valle de Oro, calle 2 N° 31, San Diego, Carabobo", representante: { nombre: "Jorge Álvarez", cedula: "V-10.556.771", rif: "V-105567718", telefono: "0424-430-1111", parentesco: "Padre" } },
-  { id: "e13", cedula: "V-32.001.456", nombres: "Paola Andreína", apellidos: "Morales Ugueto", fechaNacimiento: "2011-01-22", telefono: "0412-455-0909", email: "paola.morales@correo.com", sedeId: "s2", catedra: "Violín", direccionFiscal: "La Granja, calle 141 N° 20, Naguanagua, Carabobo", representante: { nombre: "Elena Ugueto", cedula: "V-14.009.332", rif: "V-140093325", telefono: "0412-450-8080", parentesco: "Madre" } },
-  { id: "e14", cedula: "V-29.120.339", nombres: "Ricardo José", apellidos: "Fernández Lugo", fechaNacimiento: "2005-03-08", telefono: "0414-401-5566", email: "ricardo.fernandez@correo.com", sedeId: "s3", catedra: "Oboe", direccionFiscal: "Los Mangos, av. 92 N° 44, Valencia, Carabobo" },
-  { id: "e15", cedula: "V-30.774.221", nombres: "Andrea Carolina", apellidos: "Silva Núñez", fechaNacimiento: "2006-09-27", telefono: "0414-433-2211", email: "andrea.silva@correo.com", sedeId: "s1", catedra: "Cuatro", direccionFiscal: "El Trigal, calle 148 N° 9, Valencia, Carabobo" },
-  { id: "e16", cedula: "V-32.880.145", nombres: "Miguel Ángel", apellidos: "Bracho Uzcátegui", fechaNacimiento: "2010-11-15", telefono: "0426-410-7733", email: "miguel.bracho@correo.com", sedeId: "s1", catedra: "Piano", direccionFiscal: "Av. Bolívar Norte, res. Camoruco, apto 11A, Valencia", representante: { nombre: "Yolanda Uzcátegui", cedula: "V-13.998.005", rif: "V-139980054", telefono: "0426-410-0099", parentesco: "Madre" } },
+  { id: "e1", cedula: "V-31.245.876", nombre: "María Alejandra Pérez Rodríguez", fechaNacimiento: "2009-03-14", telefono: "0414-412-3345", email: "maria.perez@correo.com", sedeId: "s1", catedra: "Violín", direccionFiscal: "Urb. La Viña, calle 132 N° 45-12, Valencia, Carabobo", representante: { nombre: "Carmen Rodríguez", cedula: "V-14.567.234", rif: "V-145672340", telefono: "0414-400-1122", parentesco: "Madre" } },
+  { id: "e2", cedula: "V-30.987.112", nombre: "José Gregorio Hernández Díaz", fechaNacimiento: "2007-11-02", telefono: "0424-455-9087", email: "jose.hernandez@correo.com", sedeId: "s1", catedra: "Violín", direccionFiscal: "Prebo I, av. Los Nísperos N° 8, Valencia, Carabobo" },
+  { id: "e3", cedula: "V-33.120.554", nombre: "Valentina Gómez Salas", fechaNacimiento: "2012-06-21", telefono: "0412-778-6521", email: "valen.gomez@correo.com", sedeId: "s2", catedra: "Violín", direccionFiscal: "Tarapío, calle 5 N° 22, Naguanagua, Carabobo", representante: { nombre: "Luis Gómez", cedula: "V-12.998.341", rif: "V-129983415", telefono: "0412-771-0090", parentesco: "Padre" } },
+  { id: "e4", cedula: "V-29.654.330", rif: "V-296543302", nombre: "Andrés Eduardo Mendoza Rivas", fechaNacimiento: "2005-01-30", telefono: "0414-490-1276", email: "andres.mendoza@correo.com", sedeId: "s3", catedra: "Violín", direccionFiscal: "El Viñedo, av. Paseo Cabriales, res. Alba, Valencia" },
+  { id: "e5", cedula: "V-31.876.002", nombre: "Camila Sofía Torres Blanco", fechaNacimiento: "2008-09-09", telefono: "0424-412-0033", email: "camila.torres@correo.com", sedeId: "s3", catedra: "Viola", direccionFiscal: "San José de Tarbes, calle 98 N° 14, Valencia", representante: { nombre: "Ana Blanco", cedula: "V-13.402.118", rif: "V-134021186", telefono: "0424-400-7788", parentesco: "Madre" } },
+  { id: "e6", cedula: "V-28.443.901", rif: "V-284439017", nombre: "Luis Ángel Martínez Oropeza", fechaNacimiento: "2004-04-18", telefono: "0416-641-2290", email: "luis.martinez@correo.com", sedeId: "s3", catedra: "Violonchelo", direccionFiscal: "Los Guayos, sector Paraparal, casa 17, Carabobo", representante: { nombre: "Nelson Martínez", cedula: "V-9.880.441", rif: "V-098804412", telefono: "0416-640-0011", parentesco: "Padre" } },
+  { id: "e7", cedula: "V-30.210.778", nombre: "Daniela Castillo Peña", fechaNacimiento: "2006-12-05", telefono: "0414-422-8765", email: "daniela.castillo@correo.com", sedeId: "s2", catedra: "Contrabajo", direccionFiscal: "La Esmeralda, calle 3 N° 40, San Diego, Carabobo" },
+  { id: "e8", cedula: "V-32.554.119", nombre: "Sebastián Rojas Medina", fechaNacimiento: "2010-02-27", telefono: "0412-409-3301", email: "sebas.rojas@correo.com", sedeId: "s1", catedra: "Flauta traversa", direccionFiscal: "Trigal Norte, av. 140 N° 99-3, Valencia", representante: { nombre: "Patricia Medina", cedula: "V-15.330.908", rif: "V-153309081", telefono: "0412-400-2211", parentesco: "Madre" } },
+  { id: "e9", cedula: "V-29.887.645", nombre: "Gabriela Suárez León", fechaNacimiento: "2005-08-13", telefono: "0424-477-0192", email: "gabriela.suarez@correo.com", sedeId: "s3", catedra: "Clarinete", direccionFiscal: "Naguanagua centro, calle Comercio N° 12, Carabobo" },
+  { id: "e10", cedula: "V-31.009.874", nombre: "Diego Alejandro Ramírez Colmenares", fechaNacimiento: "2008-05-03", telefono: "0414-499-6620", email: "diego.ramirez@correo.com", sedeId: "s2", catedra: "Trompeta", direccionFiscal: "Rancho Grande, calle principal N° 7, Puerto Cabello", representante: { nombre: "Rosa Colmenares", cedula: "V-11.876.542", rif: "V-118765429", telefono: "0414-488-3310", parentesco: "Madre" } },
+  { id: "e11", cedula: "V-30.556.013", nombre: "Isabella Vargas Quintero", fechaNacimiento: "2007-07-19", telefono: "0416-600-4512", email: "isabella.vargas@correo.com", sedeId: "s3", catedra: "Corno francés", direccionFiscal: "Mañongo, res. Los Robles, apto 5B, Naguanagua" },
+  { id: "e12", cedula: "V-31.332.980", nombre: "Samuel Álvarez Páez", fechaNacimiento: "2009-10-10", telefono: "0424-431-7788", email: "samuel.alvarez@correo.com", sedeId: "s2", catedra: "Trombón", direccionFiscal: "Valle de Oro, calle 2 N° 31, San Diego, Carabobo", representante: { nombre: "Jorge Álvarez", cedula: "V-10.556.771", rif: "V-105567718", telefono: "0424-430-1111", parentesco: "Padre" } },
+  { id: "e13", nombre: "Paola Andreína Morales Ugueto", fechaNacimiento: "2011-01-22", telefono: "0412-455-0909", email: "paola.morales@correo.com", sedeId: "s2", catedra: "Violín", direccionFiscal: "La Granja, calle 141 N° 20, Naguanagua, Carabobo", representante: { nombre: "Elena Ugueto", cedula: "V-14.009.332", rif: "V-140093325", telefono: "0412-450-8080", parentesco: "Madre" } },
+  { id: "e14", cedula: "V-29.120.339", nombre: "Ricardo José Fernández Lugo", fechaNacimiento: "2005-03-08", telefono: "0414-401-5566", email: "ricardo.fernandez@correo.com", sedeId: "s3", catedra: "Oboe", direccionFiscal: "Los Mangos, av. 92 N° 44, Valencia, Carabobo" },
+  { id: "e15", cedula: "V-30.774.221", nombre: "Andrea Carolina Silva Núñez", fechaNacimiento: "2006-09-27", telefono: "0414-433-2211", email: "andrea.silva@correo.com", sedeId: "s1", catedra: "Cuatro", direccionFiscal: "El Trigal, calle 148 N° 9, Valencia, Carabobo" },
+  { id: "e16", cedula: "V-32.880.145", nombre: "Miguel Ángel Bracho Uzcátegui", fechaNacimiento: "2010-11-15", telefono: "0426-410-7733", email: "miguel.bracho@correo.com", sedeId: "s1", catedra: "Piano", direccionFiscal: "Av. Bolívar Norte, res. Camoruco, apto 11A, Valencia", representante: { nombre: "Yolanda Uzcátegui", cedula: "V-13.998.005", rif: "V-139980054", telefono: "0426-410-0099", parentesco: "Madre" } },
 ]
 
 // [instrumentoId, integranteId, sede del préstamo, inicio (días), fin (días)]
@@ -136,12 +136,21 @@ const prestamos: [string, string, string, number, number][] = [
   ["i36", "e16", "s1", -15, 350],
 ]
 
+// Comodatos ya cerrados, para la pestaña "Historial".
+// [instrumentoId, integranteId, sede, inicio (días), fin (días), archivado (días), motivo]
+const archivados: [string, string, string, number, number, number, string][] = [
+  ["i3", "e1", "s1", -700, -340, -335, "Creció y se le dio otro violín de 4/4."],
+  ["i5", "e13", "s2", -600, -300, -298, "Devuelto en la recolección de diciembre."],
+  ["i11", "e6", "s3", -800, -430, -425, "Se retiró del programa; instrumento devuelto completo."],
+  ["i26", "e10", "s2", -540, -200, -196, "Cambio de cátedra: pasó a corno francés."],
+]
+
 function buildComodatos(): Comodato[] {
   const hoy = todayIso()
   const anio = hoy.slice(0, 4)
-  return prestamos.map(([instrumentoId, integranteId, sedeId, ini, fin], i) => ({
+  const activos: Comodato[] = prestamos.map(([instrumentoId, integranteId, sedeId, ini, fin], i) => ({
     id: `c${i + 1}`,
-    numero: `CMD-${anio}-${String(i + 1).padStart(4, "0")}`,
+    codigo: `CMD-${anio}-${String(i + 1).padStart(4, "0")}`,
     instrumentoId,
     integranteId,
     sedeId,
@@ -150,6 +159,20 @@ function buildComodatos(): Comodato[] {
     condicionEntrega: "Buena",
     creadoEn: addDays(hoy, ini),
   }))
+  const cerrados: Comodato[] = archivados.map(([instrumentoId, integranteId, sedeId, ini, fin, arch, motivo], i) => ({
+    id: `a${i + 1}`,
+    codigo: `CMD-${Number(anio) - 1}-${String(i + 1).padStart(4, "0")}`,
+    instrumentoId,
+    integranteId,
+    sedeId,
+    fechaInicio: addDays(hoy, ini),
+    fechaFin: addDays(hoy, fin),
+    condicionEntrega: "Buena",
+    creadoEn: addDays(hoy, ini),
+    archivadoEn: addDays(hoy, arch),
+    motivoArchivo: motivo,
+  }))
+  return [...activos, ...cerrados]
 }
 
 export function buildSeed(): Db {

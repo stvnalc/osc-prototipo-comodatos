@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from "react-router-dom"
 import { Handshake, MapPin, Plus, Search } from "lucide-react"
 import { useDialogs } from "@/components/dialogs/dialogs-provider"
 import { EstadoBadge } from "@/components/estado-badge"
-import { FotoMiniatura } from "@/components/foto-instrumento"
 import { InstrumentoAcciones } from "@/components/instrumento-acciones"
 import { PageHeader } from "@/components/page-header"
 import { Paginacion, usePaginado } from "@/components/paginacion"
@@ -127,7 +126,6 @@ export function InstrumentosPage() {
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
-                  <TableHead className="w-14" />
                   <TableHead>Código</TableHead>
                   <TableHead>Instrumento</TableHead>
                   <TableHead className="hidden lg:table-cell">Familia</TableHead>
@@ -139,7 +137,7 @@ export function InstrumentosPage() {
               <TableBody>
                 {visibles.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-muted-foreground h-24 text-center">
+                    <TableCell colSpan={6} className="text-muted-foreground h-24 text-center">
                       No hay instrumentos que coincidan con los filtros.
                     </TableCell>
                   </TableRow>
@@ -149,9 +147,6 @@ export function InstrumentosPage() {
                   const e = c && store.integrante(c.integranteId)
                   return (
                     <TableRow key={i.id} className="cursor-pointer" onClick={() => navigate(`/consulta?codigo=${i.codigo}`)}>
-                      <TableCell>
-                        <FotoMiniatura foto={i.foto} />
-                      </TableCell>
                       <TableCell className="font-mono text-xs">{i.codigo}</TableCell>
                       <TableCell>
                         <div className="font-medium">{i.nombre}</div>

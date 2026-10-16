@@ -76,7 +76,7 @@ export async function descargarContrato(opts: {
   doc.setFontSize(9)
   doc.setTextColor(110)
   doc.text(`RIF ${RIF}`, W - M, y + 5, { align: "right" })
-  doc.text(`Contrato N° ${c.numero}`, W - M, y + 10, { align: "right" })
+  doc.text(`Contrato ${c.codigo}`, W - M, y + 10, { align: "right" })
   doc.setTextColor(0)
   y += 26
 
@@ -90,11 +90,21 @@ export async function descargarContrato(opts: {
   doc.text("CONTRATO DE COMODATO DE INSTRUMENTO MUSICAL", W / 2, y, { align: "center" })
   y += 10
 
+  // Si el integrante es menor de edad, el instrumento se registra a nombre de
+  // su representante; si no, a nombre del integrante (acuerdo del 2026-10-03).
   const menor = edad(e.fechaNacimiento) < 18
-  const rep = e.representante
-  const comodatario = menor && rep
-    ? `${rep.nombre.toUpperCase()}, venezolano(a), mayor de edad, titular de la cédula de identidad N° ${rep.cedula} y del RIF N° ${rep.rif}, actuando en su carácter de ${rep.parentesco.toLowerCase()} y representante legal del (de la) integrante ${nombreCompleto(e).toUpperCase()}, titular de la cédula de identidad N° ${e.cedula}, con domicilio fiscal en ${e.direccionFiscal}`
-    : `${nombreCompleto(e).toUpperCase()}, venezolano(a), titular de la cédula de identidad N° ${e.cedula}, con domicilio fiscal en ${e.direccionFiscal}`
+  const rep = menor ? e.representante : undefined
+  /** La cédula y el RIF son opcionales: solo se nombran si existen. */
+  const identificacion = (p: { cedula?: string; rif?: string }) => {
+    const partes = [
+      p.cedula && `titular de la cédula de identidad N° ${p.cedula}`,
+      p.rif && `inscrito(a) en el RIF N° ${p.rif}`,
+    ].filter(Boolean)
+    return partes.length ? `, ${partes.join(" y ")}` : ""
+  }
+  const comodatario = rep
+    ? `${rep.nombre.toUpperCase()}, venezolano(a), mayor de edad${identificacion(rep)}, actuando en su carácter de ${rep.parentesco.toLowerCase()} y representante legal del (de la) integrante ${nombreCompleto(e).toUpperCase()}${identificacion(e)}, con domicilio fiscal en ${e.direccionFiscal}`
+    : `${nombreCompleto(e).toUpperCase()}, venezolano(a)${identificacion(e)}, con domicilio fiscal en ${e.direccionFiscal}`
 
   parrafo(
     `Entre la ${FUNDACION}, inscrita bajo el RIF ${RIF}, quien en lo sucesivo se denominará "EL COMODANTE", por una parte; y por la otra, ${comodatario}, integrante de la cátedra de ${e.catedra} adscrito(a) a la sede ${sedeIntegrante?.nombre ?? "—"}, quien en lo sucesivo se denominará "EL COMODATARIO", se ha convenido celebrar el presente contrato de comodato, de conformidad con lo previsto en el Código Civil venezolano, el cual se regirá por las siguientes cláusulas:`,
@@ -181,7 +191,7 @@ export async function descargarContrato(opts: {
   )
 
   // Firmas
-  const firmas = menor && rep
+  const firmas = rep
     ? ["Por EL COMODANTE", "Representante legal", "Integrante"]
     : ["Por EL COMODANTE", "EL COMODATARIO"]
   saltoSiHaceFalta(34)
@@ -196,7 +206,8 @@ export async function descargarContrato(opts: {
     doc.setFont("helvetica", "bold")
     doc.text(f, x + (col - 12) / 2, y + 5, { align: "center" })
     doc.setFont("helvetica", "normal")
-    const sub = idx === 0 ? "Nombre, firma y sello" : idx === 1 && menor && rep ? `C.I. ${rep.cedula}` : `C.I. ${e.cedula}`
+    const firmante = idx === 1 && rep ? rep : e
+    const sub = idx === 0 ? "Nombre, firma y sello" : firmante.cedula ? `C.I. ${firmante.cedula}` : "C.I. ______________"
     doc.text(sub, x + (col - 12) / 2, y + 9.5, { align: "center" })
   })
 
@@ -211,5 +222,5 @@ export async function descargarContrato(opts: {
     doc.setTextColor(0)
   }
 
-  doc.save(`${c.numero}_${i.codigo}.pdf`)
+  doc.save(`${c.codigo}_${i.codigo}.pdf`)
 }

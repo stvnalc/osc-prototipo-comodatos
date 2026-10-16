@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { Handshake, TriangleAlert } from "lucide-react"
+import { Handshake, TriangleAlert, UserPlus } from "lucide-react"
 import { toast } from "sonner"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,8 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { SelectField } from "@/components/select-field"
-import { addDays, edad, nombreCompleto, nombreSede, sedeConDireccion, todayIso } from "@/lib/format"
+import { IntegranteDialog } from "./integrante-dialog"
+import { addDays, cedulaODash, edad, nombreCompleto, nombreSede, sedeConDireccion, todayIso } from "@/lib/format"
 import { descargarContrato } from "@/lib/pdf"
 import { useStore } from "@/lib/store"
 import { CONDICIONES, type CondicionFisica, type Comodato } from "@/lib/types"
@@ -18,6 +19,17 @@ const DURACIONES = [
   { label: "6 meses", dias: 182 },
   { label: "1 año", dias: 365 },
 ]
+
+/**
+ * Ciclo acordado con la fundación: los instrumentos se recogen en diciembre y
+ * se vuelven a entregar en enero. 15 de diciembre del año de la asignación
+ * (o del siguiente, si ya pasó).
+ */
+function recoleccionDiciembre(desdeIso: string): string {
+  const anio = Number(desdeIso.slice(0, 4))
+  const dic = `${anio}-12-15`
+  return desdeIso < dic ? dic : `${anio + 1}-12-15`
+}
 
 export function ComodatoDialog({
   open,
@@ -46,6 +58,7 @@ export function ComodatoDialog({
   const [condicion, setCondicion] = useState<string>(comodato?.condicionEntrega ?? "")
   const [observaciones, setObservaciones] = useState(comodato?.observaciones ?? "")
   const [intentado, setIntentado] = useState(false)
+  const [nuevoIntegrante, setNuevoIntegrante] = useState(false)
 
   const disponibles = db.instrumentos.filter(
     (i) => i.estado === "disponible" || i.id === presetInstrumentoId || i.id === comodato?.instrumentoId
@@ -67,7 +80,6 @@ export function ComodatoDialog({
     return e
   }, [instrumentoId, integranteId, sedeElegida, fechaInicio, fechaFin])
 
-  const menorSinRepresentante = integrante && edad(integrante.fechaNacimiento) < 18 && !integrante.representante
   const otrosComodatos = integrante
     ? store.comodatosDeIntegrante(integrante.id).filter((c) => c.id !== comodato?.id).length
     : 0
@@ -86,13 +98,13 @@ export function ComodatoDialog({
     }
     if (comodato) {
       store.actualizarComodato(comodato.id, datos)
-      toast.success(`Comodato ${comodato.numero} actualizado`)
+      toast.success(`Comodato ${comodato.codigo} actualizado`)
       onOpenChange(false)
       return
     }
     const c = store.crearComodato(datos)
     onOpenChange(false)
-    toast.success(`Comodato ${c.numero} registrado`, {
+    toast.success(`Comodato ${c.codigo} registrado`, {
       description: `${instrumento.codigo} asignado a ${nombreCompleto(integrante)} · ${nombreSede(store.sede(sedeElegida))}.`,
       action: {
         label: "Descargar PDF",
@@ -114,7 +126,7 @@ export function ComodatoDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>{editando ? `Editar comodato ${comodato.numero}` : "Nuevo comodato"}</DialogTitle>
+          <DialogTitle>{editando ? `Editar comodato ${comodato.codigo}` : "Nuevo comodato"}</DialogTitle>
           <DialogDescription>
             {editando
               ? "Corrige las fechas, la sede o las observaciones del préstamo."
@@ -150,7 +162,13 @@ export function ComodatoDialog({
           </Field>
 
           <Field data-invalid={!!err("integrante")}>
-            <FieldLabel htmlFor="nc-integrante">Integrante</FieldLabel>
+            <div className="flex items-center justify-between gap-2">
+              <FieldLabel htmlFor="nc-integrante">Integrante</FieldLabel>
+              <Button type="button" variant="outline" size="xs" onClick={() => setNuevoIntegrante(true)}>
+                <UserPlus data-icon="inline-start" />
+                Registrar integrante
+              </Button>
+            </div>
             <SelectField
               id="nc-integrante"
               value={integranteId}
@@ -161,7 +179,7 @@ export function ComodatoDialog({
               invalid={!!err("integrante")}
               options={db.integrantes.map((e) => ({
                 value: e.id,
-                label: `${nombreCompleto(e)} · ${e.cedula}`,
+                label: `${nombreCompleto(e)} · ${cedulaODash(e)}`,
                 hint: e.catedra,
               }))}
             />
@@ -187,13 +205,6 @@ export function ComodatoDialog({
             <FieldError>{err("sede")}</FieldError>
           </Field>
 
-          {menorSinRepresentante && (
-            <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-              <TriangleAlert />
-              <AlertTitle>Integrante menor de edad sin representante</AlertTitle>
-              <AlertDescription>El contrato debería firmarlo un representante legal. Regístralo antes de imprimir.</AlertDescription>
-            </Alert>
-          )}
           {otrosComodatos > 0 && (
             <Alert>
               <TriangleAlert />
@@ -211,7 +222,7 @@ export function ComodatoDialog({
             <Field data-invalid={!!err("fechaFin")}>
               <FieldLabel htmlFor="nc-fin">Fecha de devolución</FieldLabel>
               <Input id="nc-fin" type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
-              <div className="flex gap-1">
+              <div className="flex flex-wrap gap-1">
                 {DURACIONES.map((d) => (
                   <Button
                     key={d.label}
@@ -223,6 +234,14 @@ export function ComodatoDialog({
                     {d.label}
                   </Button>
                 ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  onClick={() => setFechaFin(recoleccionDiciembre(fechaInicio || hoy))}
+                >
+                  Recolección de diciembre
+                </Button>
               </div>
               <FieldError>{err("fechaFin")}</FieldError>
             </Field>
@@ -259,6 +278,16 @@ export function ComodatoDialog({
             {editando ? "Guardar cambios" : "Registrar comodato"}
           </Button>
         </DialogFooter>
+        {/* Anidado: permite registrar al integrante sin salir del comodato. */}
+        <IntegranteDialog
+          key={nuevoIntegrante ? "abierto" : "cerrado"}
+          open={nuevoIntegrante}
+          onOpenChange={setNuevoIntegrante}
+          onCreado={(e) => {
+            setIntegranteId(e.id)
+            if (!comodato) setSedeId("")
+          }}
+        />
       </DialogContent>
     </Dialog>
   )

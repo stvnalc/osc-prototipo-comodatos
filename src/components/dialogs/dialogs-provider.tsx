@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react"
 import { ComodatoDialog } from "./comodato-dialog"
-import { FinalizarComodatoDialog } from "./finalizar-comodato-dialog"
+import { ArchivarComodatoDialog } from "./archivar-comodato-dialog"
 import { InstrumentoDialog } from "./instrumento-dialog"
 import { IntegranteDialog } from "./integrante-dialog"
 import { ReparacionDialog } from "./reparacion-dialog"
@@ -12,7 +12,7 @@ import { useStore } from "@/lib/store"
 interface Dialogs {
   nuevoComodato: (preset?: { instrumentoId?: string; integranteId?: string }) => void
   editarComodato: (comodatoId: string) => void
-  finalizarComodato: (comodatoId: string) => void
+  archivarComodato: (comodatoId: string) => void
   enviarAReparacion: (instrumentoId: string) => void
   nuevoInstrumento: () => void
   editarInstrumento: (instrumentoId: string) => void
@@ -31,7 +31,7 @@ export function DialogsProvider({ children }: { children: ReactNode }) {
   const [comodato, setComodato] = useState<FormState>(cerrado)
   const [instrumento, setInstrumento] = useState<FormState>(cerrado)
   const [integrante, setIntegrante] = useState<FormState>(cerrado)
-  const [finalizar, setFinalizar] = useState<string | null>(null)
+  const [archivar, setArchivar] = useState<string | null>(null)
   const [reparacion, setReparacion] = useState<string | null>(null)
 
   const abrir = (set: (f: (s: FormState) => FormState) => void, datos: Omit<FormState, "open" | "key"> = {}) =>
@@ -41,7 +41,7 @@ export function DialogsProvider({ children }: { children: ReactNode }) {
     () => ({
       nuevoComodato: (preset) => abrir(setComodato, preset ?? {}),
       editarComodato: (id) => abrir(setComodato, { id }),
-      finalizarComodato: setFinalizar,
+      archivarComodato: setArchivar,
       enviarAReparacion: setReparacion,
       nuevoInstrumento: () => abrir(setInstrumento),
       editarInstrumento: (id) => abrir(setInstrumento, { id }),
@@ -74,7 +74,7 @@ export function DialogsProvider({ children }: { children: ReactNode }) {
         onOpenChange={(open) => setIntegrante((s) => ({ ...s, open }))}
         integrante={integrante.id ? store.integrante(integrante.id) : undefined}
       />
-      <FinalizarComodatoDialog comodatoId={finalizar} onClose={() => setFinalizar(null)} />
+      <ArchivarComodatoDialog comodatoId={archivar} onClose={() => setArchivar(null)} />
       <ReparacionDialog instrumentoId={reparacion} onClose={() => setReparacion(null)} />
     </DialogsContext.Provider>
   )

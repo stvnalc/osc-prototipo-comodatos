@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom"
-import { Building2, GraduationCap, Handshake, LayoutDashboard, Music, RotateCcw, ScanSearch } from "lucide-react"
+import { Boxes, Building2, GraduationCap, Handshake, LayoutDashboard, RotateCcw, ScanSearch, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import {
   Sidebar,
@@ -21,14 +21,16 @@ import { vencimiento } from "@/lib/format"
 export function AppSidebar() {
   const { pathname } = useLocation()
   const { db, reset } = useStore()
-  const vencidos = db.comodatos.filter((c) => vencimiento(c).tipo !== "vigente").length
+  const activos = db.comodatos.filter((c) => !c.archivadoEn)
+  const vencidos = activos.filter((c) => vencimiento(c).tipo !== "vigente").length
 
   const principal = [
     { to: "/", label: "Panel", icon: LayoutDashboard },
     { to: "/consulta", label: "Consulta de instrumentos", icon: ScanSearch },
+    { to: "/novedades", label: "Novedades", icon: Sparkles },
   ]
   const gestion = [
-    { to: "/instrumentos", label: "Instrumentos", icon: Music, badge: db.instrumentos.length },
+    { to: "/instrumentos", label: "Instrumentos", icon: Boxes, badge: db.instrumentos.length },
     { to: "/comodatos", label: "Comodatos", icon: Handshake, badge: vencidos || undefined, alert: vencidos > 0 },
     { to: "/integrantes", label: "Integrantes", icon: GraduationCap, badge: db.integrantes.length },
     { to: "/sedes", label: "Sedes", icon: Building2, badge: db.sedes.length },
