@@ -134,7 +134,7 @@ export function ComodatoDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <FieldGroup className="max-h-[65vh] gap-4 overflow-y-auto px-0.5 py-1">
+        <FieldGroup className="-mr-3 max-h-[65vh] gap-4 overflow-y-auto py-1 pr-3 pl-0.5">
           <Field data-invalid={!!err("instrumento")}>
             <FieldLabel htmlFor="nc-instrumento">Instrumento</FieldLabel>
             <SelectField

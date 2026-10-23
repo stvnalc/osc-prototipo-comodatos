@@ -107,7 +107,15 @@ export function ArchivarComodatoDialog({ comodatoId, onClose }: { comodatoId: st
           />
           <div className="flex flex-wrap gap-1">
             {MOTIVOS.map((m) => (
-              <Button key={m} type="button" variant="outline" size="xs" onClick={() => setMotivo(m)}>
+              <Button
+                key={m}
+                type="button"
+                variant="outline"
+                size="xs"
+                // El Field en error tiñe de rojo su contenido; las sugerencias no son el error.
+                className="text-foreground"
+                onClick={() => setMotivo(m)}
+              >
                 {m.replace(/\.$/, "")}
               </Button>
             ))}

@@ -135,7 +135,7 @@ export function InstrumentoDialog({
               : "Se registra como “Disponible” en la sede de resguardo indicada."}
           </DialogDescription>
         </DialogHeader>
-        <FieldGroup className="max-h-[65vh] gap-4 overflow-y-auto px-0.5 py-1">
+        <FieldGroup className="-mr-3 max-h-[65vh] gap-4 overflow-y-auto py-1 pr-3 pl-0.5">
           <Field>
             <FieldLabel>Foto del instrumento</FieldLabel>
             <FotoInput value={f.foto} onChange={(foto) => set("foto", foto)} />
