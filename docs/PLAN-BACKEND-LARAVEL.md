@@ -42,7 +42,8 @@ Este documento es la guía que debe seguir el asistente de IA (Claude Code u otr
 | 4 | — (no se menciona) | `.env.example` trae `DB_USERNAME=root` y el contenedor muere con `ERROR 1396 ... CREATE USER failed for 'root'@'%'`. Usar un usuario no-root (p. ej. `osc`). Corregirlo en la Fase 0. |
 | 5 | Fase 7: conectar el prototipo a la API | **Fuera del alcance.** Lo acordado el 2026-10-03 es trabajar sobre PHP; el prototipo queda como referencia. La UI se construye directo en `resources/js/src/features/comodatos` (JS + Bootstrap, como el resto del repo). Ver Fase 7 revisada. |
 | 6 | Roles completos en la Fase 2 | Los roles siguen sin definir (pregunta abierta). Fase 2 = **login con un solo rol `admin`** y la columna `rol` preparada; policies por rol cuando la fundación responda. |
-| 7 | — | Otros problemas del repo base a tener en cuenta: `utils/zodValidations.js` usa `error.errors` (en Zod 4 es `error.issues`), `Confirm.jsx` importa `prop-types` sin declararlo en `package.json`, y `app.blade.php` apunta a un `/favicon.svg` que no existe. |
+| 7 | — | **`User.php` usa `#[Fillable]` y `#[Hidden]`, que son de Laravel 13.** En Laravel 12 PHP los ignora sin avisar: `User::create()` falla y el hash de la contraseña sale en el JSON. Usar `$fillable` / `$hidden`. Ojo con copiar ejemplos de Laravel 13. |
+| 8 | — | Otros problemas del repo base a tener en cuenta: `utils/zodValidations.js` usa `error.errors` (en Zod 4 es `error.issues`), `Confirm.jsx` importa `prop-types` sin declararlo en `package.json`, y `app.blade.php` apunta a un `/favicon.svg` que no existe. |
 
 ---
 
