@@ -42,3 +42,8 @@ npm run dev     # http://localhost:5173
 npm run build
 ```
 Stack: Vite + React 19 + TypeScript + Tailwind 4 + shadcn/ui (Base UI) + jsPDF.
+
+## Paso al sistema real
+El plan para implementar el backend en `osc-inventario-laravel` está en
+[`docs/PLAN-BACKEND-LARAVEL.md`](docs/PLAN-BACKEND-LARAVEL.md). Sirve también de guía para la IA:
+se le pasa el archivo y la fase que toca.
